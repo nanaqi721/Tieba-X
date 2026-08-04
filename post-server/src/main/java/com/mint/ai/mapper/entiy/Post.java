@@ -1,4 +1,4 @@
-package mapper.entiy;
+package com.mint.ai.mapper.entiy;
 
 import com.baomidou.mybatisplus.annotation.*;
 
