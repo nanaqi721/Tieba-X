@@ -19,5 +19,5 @@ A:将帖子的基本信息缓存到redis，每次访问redis递增，添加定�
 
 A：
 
-![image-20260804144803734](C:\Users\lixia\AppData\Roaming\Typora\typora-user-images\image-20260804144803734.png)
+![image-20260804144803734.png](image-20260804144803734.png)
 
