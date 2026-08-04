@@ -15,5 +15,9 @@
 
 A:将帖子的基本信息缓存到redis，每次访问redis递增，添加定时任务同步数据库，如果同步失败打印日志下次再同步
 
+**Q2:**如何设置yml中jdbc的url
 
+A：
+
+![image-20260804144803734](C:\Users\lixia\AppData\Roaming\Typora\typora-user-images\image-20260804144803734.png)
 
