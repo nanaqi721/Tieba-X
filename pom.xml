@@ -11,6 +11,7 @@
 
     <modules>
         <module>post-server</module>
+        <module>comman</module>
     </modules>
 
 
