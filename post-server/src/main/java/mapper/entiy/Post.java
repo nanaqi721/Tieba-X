@@ -2,6 +2,7 @@ package mapper.entiy;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import java.time.LocalDateTime;
@@ -82,6 +83,7 @@ public class Post {
     /**
      * 删除标识 0 未删除 1已经删除
      */
+    @TableLogic
     private Integer deleted;
 
 }
