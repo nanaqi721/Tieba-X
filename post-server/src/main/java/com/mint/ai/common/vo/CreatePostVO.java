@@ -19,4 +19,5 @@ public class CreatePostVO {
      * 帖子id
      */
     private String id;
+    // 测试贡献
 }
