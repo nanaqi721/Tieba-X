@@ -1,12 +1,21 @@
 package com.mint.ai.service.serviceImpl;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mint.ai.common.redisKey.RedisKeyConstant;
 import com.mint.ai.common.vo.CreatePostVO;
 import com.mint.ai.dto.CreatePostRequest;
 import com.mint.ai.mapper.PostMapper;
 import com.mint.ai.mapper.entiy.Post;
 import com.mint.ai.service.PostService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 帖子控制层
@@ -16,6 +25,25 @@ import org.springframework.stereotype.Service;
 public class PostServiceImpl implements PostService {
 
     private final PostMapper postMapper;
+
+    private final StringRedisTemplate stringRedisTemplate;
+
+    // 不要引入hutool，要引入jackson包的
+    private final ObjectMapper objectMapper;
+
+
+    // lua脚本路径
+    private static final String HSET_WITH_TTL = "lua/hset_with_ttl.lua";
+
+    // 帖子缓存过期时间
+    private static final long POST_CACHE_TTL_SECONDS = 3600;
+
+    // 自动初始化脚本
+    private static final DefaultRedisScript<Long> HSET_WITH_TTL_SCRIPT = new DefaultRedisScript<>();
+    static {
+        HSET_WITH_TTL_SCRIPT.setLocation(new ClassPathResource("lua/hset_with_ttl.lua"));
+        HSET_WITH_TTL_SCRIPT.setResultType(Long.class);
+    }
     @Override
     public CreatePostVO createPost(String barId, CreatePostRequest request) {
 
@@ -30,9 +58,39 @@ public class PostServiceImpl implements PostService {
                 .likeCount(0)
                 .build();
         postMapper.insert(post);
+
+        // 构建hset帖子缓存数据
+        Map<String, String> cachePost = createCachePost(post.getId(), request);
+        ArrayList<Object> args = new ArrayList<>();
+        args.add(POST_CACHE_TTL_SECONDS);
+        cachePost.forEach((filed,value) -> {
+            args.add(filed);
+            args.add(value);
+        });
+        // 执行lua脚本
+        stringRedisTemplate.execute(HSET_WITH_TTL_SCRIPT,
+                List.of(String.format(RedisKeyConstant.POST_CACHE_DETAIL,post.getId())),
+                args);
         return CreatePostVO.builder()
                 .id(post.getId())
                 .build();
 
+    }
+
+    private Map<String,String> createCachePost(String postId, CreatePostRequest request){
+        HashMap<String, String> hashMap = new HashMap<>();
+        // 构建缓存
+        // 现缓存id吧，我也不知道后续有没有用
+        hashMap.put("id",postId);
+        hashMap.put("barID",request.getBarId());
+        // 标题全部缓存，因为标题是一个文章的重要信息而且我们也做过限制了（5-30）
+        hashMap.put("title",request.getTitle());
+        hashMap.put("content",request.getContent().length() > 35 ?
+                request.getContent().substring(0,35) + "..." : request.getContent());
+        hashMap.put("likeCount","0");
+        hashMap.put("commentCount","0");
+        hashMap.put("favoriteCount","0");
+        // todo 缓存封面
+        return hashMap;
     }
 }

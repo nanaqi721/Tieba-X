@@ -6,7 +6,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * 创建帖子请求体
@@ -16,6 +15,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 @AllArgsConstructor
 @Builder
 public class CreatePostRequest {
+
+    /**
+     * 吧id
+     */
+    private String barId;
 
     /**
      * 标题
