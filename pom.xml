@@ -11,7 +11,7 @@
 
     <modules>
         <module>post-server</module>
-        <module>comman</module>
+        <module>common</module>
     </modules>
 
 
@@ -26,7 +26,16 @@
 
     <dependencyManagement>
         <dependencies>
-            
+
+            <!-- Spring Boot BOM：统一管理所有 spring-boot-* 组件版本，避免子模块被传递依赖拉到不同版本（如 MyBatis-Plus 传递的 3.4.1 与 3.5.7 混用） -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring.start.web}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-web</artifactId>
