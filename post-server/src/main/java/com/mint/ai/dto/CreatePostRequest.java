@@ -16,10 +16,6 @@ import lombok.NoArgsConstructor;
 @Builder
 public class CreatePostRequest {
 
-    /**
-     * 吧id
-     */
-    private String barId;
 
     /**
      * 标题

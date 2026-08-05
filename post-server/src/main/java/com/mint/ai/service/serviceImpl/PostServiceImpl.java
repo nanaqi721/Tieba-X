@@ -60,7 +60,7 @@ public class PostServiceImpl implements PostService {
         postMapper.insert(post);
 
         // 构建hset帖子缓存数据
-        Map<String, String> cachePost = createCachePost(post.getId(), request);
+        Map<String, String> cachePost = createCachePost(post.getId(), request,barId);
         ArrayList<Object> args = new ArrayList<>();
         args.add(POST_CACHE_TTL_SECONDS);
         cachePost.forEach((filed,value) -> {
@@ -69,20 +69,20 @@ public class PostServiceImpl implements PostService {
         });
         // 执行lua脚本
         stringRedisTemplate.execute(HSET_WITH_TTL_SCRIPT,
-                List.of(String.format(RedisKeyConstant.POST_CACHE_DETAIL,post.getId())),
-                args);
+                List.of(String.format(RedisKeyConstant.POST_CACHE_DETAIL,barId,post.getId())),
+                args.toArray());
         return CreatePostVO.builder()
                 .id(post.getId())
                 .build();
 
     }
 
-    private Map<String,String> createCachePost(String postId, CreatePostRequest request){
+    private Map<String,String> createCachePost(String postId, CreatePostRequest request,String barId){
         HashMap<String, String> hashMap = new HashMap<>();
         // 构建缓存
         // 现缓存id吧，我也不知道后续有没有用
         hashMap.put("id",postId);
-        hashMap.put("barID",request.getBarId());
+        hashMap.put("barID",barId);
         // 标题全部缓存，因为标题是一个文章的重要信息而且我们也做过限制了（5-30）
         hashMap.put("title",request.getTitle());
         hashMap.put("content",request.getContent().length() > 35 ?
