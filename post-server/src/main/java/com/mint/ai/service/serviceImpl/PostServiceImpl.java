@@ -36,7 +36,7 @@ public class PostServiceImpl implements PostService {
     private static final String HSET_WITH_TTL = "lua/hset_with_ttl.lua";
 
     // 帖子缓存过期时间
-    private static final long POST_CACHE_TTL_SECONDS = 3600;
+    private static final String POST_CACHE_TTL_SECONDS = "3600";
 
     // 自动初始化脚本
     private static final DefaultRedisScript<Long> HSET_WITH_TTL_SCRIPT = new DefaultRedisScript<>();

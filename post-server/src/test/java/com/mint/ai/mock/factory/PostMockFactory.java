@@ -32,17 +32,17 @@ public class PostMockFactory {
 
     /** 模拟浏览增量：HINCRBY 增量 hash */
     public void mockViewCount(String postId, long delta) {
-        incrementCount(postId, "viewCount", delta);
+        incrementCount(postId, "view_count", delta);
     }
 
     /** 模拟点赞增量 */
     public void mockLikeCount(String postId, long delta) {
-        incrementCount(postId, "likeCount", delta);
+        incrementCount(postId, "like_count", delta);
     }
 
     /** 模拟收藏增量 */
     public void mockFavoriteCount(String postId, long delta) {
-        incrementCount(postId, "favoriteCount", delta);
+        incrementCount(postId, "favorite_count", delta);
     }
 
     private void incrementCount(String postId, String metric, long delta) {

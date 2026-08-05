@@ -35,7 +35,7 @@ xxl:
       addresses: http://192.168.88.130:9001/xxl-job-admin   # 用映射后的 9001，不是 8080
     executor:
       appname: post-server-executor
-      ip: 192.168.x.x        # 本机 LAN IP，能被 VM 访问到，别填 127.0.0.1
+      ip: 192.168.88.1        # 本机 LAN IP，能被 VM 访问到，别填 127.0.0.1
       port: 9999             # admin 回调端口
       logpath: E:/logs/xxl-job/jobhandler   # Windows 本机路径，目录需存在
       logretentiondays: 30
