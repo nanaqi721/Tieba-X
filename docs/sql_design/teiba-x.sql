@@ -17,24 +17,29 @@
 
 -- 用户（含全局角色：管理员 / 普通用户）
 CREATE TABLE `user` (
-  `id`             BIGINT       NOT NULL                COMMENT '雪花ID',
-  `username`       VARCHAR(50)  NOT NULL                COMMENT '登录名',
-  `password_hash`  VARCHAR(255) NOT NULL                COMMENT '密码哈希(BCrypt)',
-  `nickname`       VARCHAR(50)  DEFAULT NULL            COMMENT '昵称',
-  `avatar_url`     VARCHAR(255) DEFAULT NULL            COMMENT '头像',
-  `bio`            VARCHAR(255) DEFAULT NULL            COMMENT '个人简介',
-  `role`           TINYINT      NOT NULL DEFAULT 0      COMMENT '全局角色 0普通 1管理员',
-  `status`         TINYINT      NOT NULL DEFAULT 0      COMMENT '状态 0正常 1封禁',
-  `post_count`     INT          NOT NULL DEFAULT 0      COMMENT '发帖数(冗余)',
-  `follower_count` INT          NOT NULL DEFAULT 0      COMMENT '粉丝数(冗余)',
-  `following_count` INT         NOT NULL DEFAULT 0      COMMENT '关注数(冗余)',
-  `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  `deleted`        TINYINT      NOT NULL DEFAULT 0      COMMENT '软删 0未删 1已删',
+  `id`                BIGINT       NOT NULL                COMMENT '雪花ID',
+  `username`          VARCHAR(50)  NOT NULL                COMMENT '登录名',
+  `password_hash`     VARCHAR(255) NOT NULL                COMMENT '密码哈希(BCrypt)',
+  `nickname`          VARCHAR(50)  DEFAULT NULL            COMMENT '昵称(展示用，可改)',
+  `email`             VARCHAR(100) DEFAULT NULL            COMMENT '邮箱(找回密码/通知，可空不唯一)',
+  `bio`               VARCHAR(255) DEFAULT NULL            COMMENT '个人简介',
+  `sex`               TINYINT      NOT NULL DEFAULT 0      COMMENT '性别 0保密 1男 2女',
+  `avatar_url`        VARCHAR(255) DEFAULT NULL            COMMENT '头像',
+  `role`              TINYINT      NOT NULL DEFAULT 0      COMMENT '全局角色 0普通 1管理员',
+  `status`            TINYINT      NOT NULL DEFAULT 0      COMMENT '状态 0正常 1封禁',
+  `post_count`        INT          NOT NULL DEFAULT 0      COMMENT '发帖数(冗余)',
+  `comment_count`     INT          NOT NULL DEFAULT 0      COMMENT '回帖数(冗余，该用户所有评论含楼中楼)',
+  `follower_count`    INT          NOT NULL DEFAULT 0      COMMENT '粉丝数(冗余)',
+  `following_count`   INT          NOT NULL DEFAULT 0      COMMENT '关注用户数(冗余)',
+  `followed_bar_count` INT         NOT NULL DEFAULT 0      COMMENT '关注吧数(冗余，follow.target_type=1)',
+  `created_at`        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at`        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted`           TINYINT      NOT NULL DEFAULT 0      COMMENT '软删 0未删 1已删',
   PRIMARY KEY (`id`),
   -- 注意：username 唯一索引与软删冲突（删号后无法重注册）。若需可重注册，
   --       软删时改写唯一值为 `username + '#del_' + id`，或用 (username, deleted) 复合唯一。
   UNIQUE KEY `uk_username` (`username`),
+  KEY `idx_email` (`email`),
   KEY `idx_status` (`status`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户';
 
