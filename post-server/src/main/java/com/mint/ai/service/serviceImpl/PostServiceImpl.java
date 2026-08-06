@@ -28,10 +28,6 @@ public class PostServiceImpl implements PostService {
 
     private final StringRedisTemplate stringRedisTemplate;
 
-    // 不要引入hutool，要引入jackson包的
-    private final ObjectMapper objectMapper;
-
-
     // lua脚本路径
     private static final String HSET_WITH_TTL = "lua/hset_with_ttl.lua";
 
@@ -41,7 +37,7 @@ public class PostServiceImpl implements PostService {
     // 自动初始化脚本
     private static final DefaultRedisScript<Long> HSET_WITH_TTL_SCRIPT = new DefaultRedisScript<>();
     static {
-        HSET_WITH_TTL_SCRIPT.setLocation(new ClassPathResource("lua/hset_with_ttl.lua"));
+        HSET_WITH_TTL_SCRIPT.setLocation(new ClassPathResource(HSET_WITH_TTL));
         HSET_WITH_TTL_SCRIPT.setResultType(Long.class);
     }
     @Override
