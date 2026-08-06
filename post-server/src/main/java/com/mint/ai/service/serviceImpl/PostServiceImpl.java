@@ -5,6 +5,7 @@ import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.redisKey.RedisKeyConstant;
 import com.mint.ai.common.vo.CreatePostVO;
 import com.mint.ai.dto.CreatePostRequest;
+import com.mint.ai.dto.UpdatePostRequest;
 import com.mint.ai.mapper.PostMapper;
 import com.mint.ai.mapper.entiy.Post;
 import com.mint.ai.service.PostService;
@@ -87,6 +88,30 @@ public class PostServiceImpl implements PostService {
         }
         // 删除缓存
         stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_CACHE_DETAIL,barId,postId));
+    }
+
+    @Override
+    public void updatePostById(String barId, UpdatePostRequest request) {
+
+        if(StrUtil.isBlank(request.getPostId())){
+            throw new ClientException("请不要输入空值");
+        }
+
+        Post post = postMapper.selectById(request.getPostId());
+        if(post == null){
+            throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(),null,PostErrorCode.POST_NOT_FOUND);
+        }
+
+        Post nowPost = Post.builder()
+                .id(request.getPostId())
+                .title(request.getTitle())
+                .content(request.getContent())
+                .build();
+        postMapper.updateById(nowPost);
+
+        stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_CACHE_DETAIL,barId,request.getPostId()));
+
+
     }
 
     private Map<String,String> createCachePost(String postId, CreatePostRequest request,String barId){

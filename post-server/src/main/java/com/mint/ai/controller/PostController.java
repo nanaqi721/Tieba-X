@@ -3,6 +3,7 @@ package com.mint.ai.controller;
 import com.mint.ai.common.Result;
 import com.mint.ai.common.vo.CreatePostVO;
 import com.mint.ai.dto.CreatePostRequest;
+import com.mint.ai.dto.UpdatePostRequest;
 import com.mint.ai.service.PostService;
 import com.mint.ai.utils.Results;
 import jakarta.validation.Valid;
@@ -27,6 +28,12 @@ public class PostController {
     @DeleteMapping("/v1/{bardId}/delete")
     public Result<Void> deletePostById(@PathVariable(value = "barId") String barId,@RequestParam(value = "postId") String postId){
         postService.deletePostById(barId,postId);
+        return Results.success();
+    }
+
+    @PutMapping("/v1/{bardId}/delete")
+    public Result<Void> updatePostById(@PathVariable(value = "barId") String barId, @RequestBody UpdatePostRequest request){
+        postService.updatePostById(barId,request);
         return Results.success();
     }
 }
