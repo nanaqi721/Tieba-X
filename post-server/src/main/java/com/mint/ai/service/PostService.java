@@ -9,4 +9,6 @@ import com.mint.ai.dto.CreatePostRequest;
  */
 public interface PostService {
     CreatePostVO createPost(String barId, CreatePostRequest request);
+
+    void deletePostById(String barId, String postId);
 }

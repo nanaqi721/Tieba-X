@@ -23,4 +23,10 @@ public class PostController {
         CreatePostVO post = postService.createPost(barId, request);
         return Results.success(post);
     }
+
+    @DeleteMapping("/v1/{bardId}/delete")
+    public Result<Void> deletePostById(@PathVariable(value = "barId") String barId,@RequestParam(value = "postId") String postId){
+        postService.deletePostById(barId,postId);
+        return Results.success();
+    }
 }

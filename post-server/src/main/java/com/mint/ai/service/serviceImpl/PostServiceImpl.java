@@ -1,5 +1,7 @@
 package com.mint.ai.service.serviceImpl;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import cn.hutool.core.util.StrUtil;
+import com.mint.ai.common.enums.PostErrorCode;
+import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.redisKey.RedisKeyConstant;
 import com.mint.ai.common.vo.CreatePostVO;
 import com.mint.ai.dto.CreatePostRequest;
@@ -71,6 +73,20 @@ public class PostServiceImpl implements PostService {
                 .id(post.getId())
                 .build();
 
+    }
+
+    @Override
+    public void deletePostById(String barId, String postId) {
+        // 判断空值
+        if(StrUtil.isBlank(barId)){
+            throw new ClientException("请不要输入空值");
+        }
+        int affected = postMapper.deleteById(postId);
+        if(affected == 0){
+            throw new ClientException(PostErrorCode.POST_DELETED.getMessage(),null,PostErrorCode.POST_DELETED);
+        }
+        // 删除缓存
+        stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_CACHE_DETAIL,barId,postId));
     }
 
     private Map<String,String> createCachePost(String postId, CreatePostRequest request,String barId){
