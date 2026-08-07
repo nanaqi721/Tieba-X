@@ -21,6 +21,7 @@ public enum BaseEnums implements IErrorCode {
 
     SUCCESS("00000", "成功"),
     USER_ERROR("A0001", "用户端错误"),
+    UNAUTHORIZED("A0002", "未登录或登录已过期"),
     SYSTEM_ERROR("B0001", "系统执行出错"),
     THIRD_PARTY_ERROR("C0001", "调用第三方服务出错");
 

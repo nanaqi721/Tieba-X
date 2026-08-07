@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
     真实 bean 的 afterPropertiesSet（也就是 bind 9999 那步）不会执行。
     这样应用在跑着也不影响测试，一劳永逸。将来写刷库任务测试类时同样加这个注解。
  */
-public class PostMockViewCountTest {
+public class PostDOMockViewCountTest {
 
     @Autowired
     private PostMockFactory postMockFactory;

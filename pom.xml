@@ -30,6 +30,7 @@
         <mybatis.version>3.5.14</mybatis.version>
         <hutool.version>5.8.41</hutool.version>
         <xxl-job.version>2.4.0</xxl-job.version>
+        <sa-token.version>1.45.0</sa-token.version>
     </properties>
 
     <dependencyManagement>
@@ -63,6 +64,18 @@
                 <groupId>com.xuxueli</groupId>
                 <artifactId>xxl-job-core</artifactId>
                 <version>${xxl-job.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.dev33</groupId>
+                <artifactId>sa-token-spring-boot3-starter</artifactId>
+                <version>${sa-token.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.dev33</groupId>
+                <artifactId>sa-token-redis-template</artifactId>
+                <version>${sa-token.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

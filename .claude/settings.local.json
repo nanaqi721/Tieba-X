@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s --max-time 30 \"https://raw.githubusercontent.com/dromara/Sa-Token/v1.45.0/sa-token-core/src/main/java/cn/dev33/satoken/stp/StpLogic.java\")"
+    ]
+  }
+}

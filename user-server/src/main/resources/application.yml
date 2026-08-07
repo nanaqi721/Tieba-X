@@ -27,3 +27,12 @@ mybatis-plus:
       logic-delete-field: deleted # 全局逻辑删除字段名(deleted为实体类属性名称)
       logic-delete-value: 1 # 逻辑已删除值。可选，默认值为 1
       logic-not-delete-value: 0 # 逻辑未删除值。可选，默认值为 0
+
+sa-token:
+  token-name: satoken        # 请求头/参数名
+  timeout: 2592000           # token 有效期 30 天
+  active-timeout: -1         # 关闭不活跃过期
+  is-concurrent: false        # 同端互斥：同账号同终端只允许一个在线，新登录顶掉旧登录
+  is-share: false             # 每次登录生成独立 token
+  token-style: uuid
+  is-log: false

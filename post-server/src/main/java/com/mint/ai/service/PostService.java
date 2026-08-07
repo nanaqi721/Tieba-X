@@ -1,8 +1,8 @@
 package com.mint.ai.service;
 
 import com.mint.ai.common.vo.CreatePostVO;
-import com.mint.ai.dto.CreatePostRequest;
-import com.mint.ai.dto.UpdatePostRequest;
+import com.mint.ai.common.dto.CreatePostRequest;
+import com.mint.ai.common.dto.UpdatePostRequest;
 
 /**
  * @param

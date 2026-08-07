@@ -2,9 +2,8 @@ package com.mint.ai.mock.factory;
 
 import com.mint.ai.common.redisKey.RedisKeyConstant;
 import com.mint.ai.mapper.PostMapper;
-import com.mint.ai.mapper.entiy.Post;
+import com.mint.ai.mapper.entiy.PostDO;
 import jakarta.annotation.Resource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -21,7 +20,7 @@ public class PostMockFactory {
 
     /** 造一个帖子，返回 postId */
     public String createPost(String title, String content) {
-        Post post = Post.builder()
+        PostDO post = PostDO.builder()
                 .bar_id("1001").user_id("1001")
                 .title(title).content(content)
                 .viewCount(0).commentCount(0).favoriteCount(0).likeCount(0)

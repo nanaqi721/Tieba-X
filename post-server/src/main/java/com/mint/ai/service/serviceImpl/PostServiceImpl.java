@@ -4,10 +4,10 @@ import com.mint.ai.common.enums.PostErrorCode;
 import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.redisKey.RedisKeyConstant;
 import com.mint.ai.common.vo.CreatePostVO;
-import com.mint.ai.dto.CreatePostRequest;
-import com.mint.ai.dto.UpdatePostRequest;
+import com.mint.ai.common.dto.CreatePostRequest;
+import com.mint.ai.common.dto.UpdatePostRequest;
 import com.mint.ai.mapper.PostMapper;
-import com.mint.ai.mapper.entiy.Post;
+import com.mint.ai.mapper.entiy.PostDO;
 import com.mint.ai.service.PostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
@@ -46,7 +46,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public CreatePostVO createPost(String barId, CreatePostRequest request) {
 
-        Post post = Post.builder()
+        PostDO post = PostDO.builder()
                 .bar_id("1001")
                 .user_id("1001")
                 .title(request.getTitle())
@@ -97,12 +97,12 @@ public class PostServiceImpl implements PostService {
             throw new ClientException("请不要输入空值");
         }
 
-        Post post = postMapper.selectById(request.getPostId());
+        PostDO post = postMapper.selectById(request.getPostId());
         if(post == null){
             throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(),null,PostErrorCode.POST_NOT_FOUND);
         }
 
-        Post nowPost = Post.builder()
+        PostDO nowPost = PostDO.builder()
                 .id(request.getPostId())
                 .title(request.getTitle())
                 .content(request.getContent())

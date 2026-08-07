@@ -2,8 +2,8 @@ package com.mint.ai.controller;
 
 import com.mint.ai.common.Result;
 import com.mint.ai.common.vo.CreatePostVO;
-import com.mint.ai.dto.CreatePostRequest;
-import com.mint.ai.dto.UpdatePostRequest;
+import com.mint.ai.common.dto.CreatePostRequest;
+import com.mint.ai.common.dto.UpdatePostRequest;
 import com.mint.ai.service.PostService;
 import com.mint.ai.utils.Results;
 import jakarta.validation.Valid;

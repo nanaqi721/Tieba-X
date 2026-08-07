@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
 import java.time.LocalDateTime;
-import java.util.Date;
 
 /**
  * 帖子实体类
@@ -19,7 +18,7 @@ import java.util.Date;
 @AllArgsConstructor
 @Builder
 @Accessors(chain = true)
-public class Post {
+public class PostDO {
 
     /**
      * 帖子id

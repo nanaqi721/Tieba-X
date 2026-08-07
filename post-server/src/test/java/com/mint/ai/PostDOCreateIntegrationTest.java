@@ -2,7 +2,7 @@ package com.mint.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mint.ai.mapper.PostMapper;
-import com.mint.ai.mapper.entiy.Post;
+import com.mint.ai.mapper.entiy.PostDO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class PostCreateIntegrationTest {
+class PostDOCreateIntegrationTest {
 
     /**
      * 模拟请求用的
@@ -63,7 +63,7 @@ class PostCreateIntegrationTest {
         assertThat(id).isNotBlank();
 
         // 验证数据库落库（同一事务内可见）
-        Post saved = postMapper.selectById(id);
+        PostDO saved = postMapper.selectById(id);
         assertThat(saved).isNotNull();
         assertThat(saved.getTitle()).isEqualTo("这是一个合法的帖子标题");
         assertThat(saved.getContent()).isEqualTo("这是帖子内容");
