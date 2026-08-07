@@ -8,14 +8,21 @@ import cn.hutool.crypto.digest.BCrypt;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mint.ai.common.Result;
 import com.mint.ai.common.dto.CreateUserRequest;
 import com.mint.ai.common.dto.LoginRequest;
+import com.mint.ai.common.enums.BaseEnums;
 import com.mint.ai.common.enums.UserErrorCode;
-import com.mint.ai.common.execption.ClientException;
+import com.mint.ai.common.exception.ClientException;
+import com.mint.ai.common.exception.ServiceException;
 import com.mint.ai.mapper.UserMapper;
 import com.mint.ai.mapper.entiy.UserDO;
+import com.mint.ai.post.api.clients.PostClient;
+import com.mint.ai.post.api.vo.PostSummaryVO;
 import com.mint.ai.service.UserService;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +32,8 @@ import org.springframework.stereotype.Service;
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
+
+    private final PostClient postClient;
     @Override
     public String register(CreateUserRequest request, String deviceType) {
         LambdaQueryWrapper<UserDO> wrapper = Wrappers.lambdaQuery(UserDO.class)
@@ -89,5 +98,19 @@ public class UserServiceImpl implements UserService {
     @Override
     public void logout() {
         StpUtil.logout();
+    }
+
+    @Override
+    public PostSummaryVO getPostSummary(String barId,String postId) {
+        Result<PostSummaryVO> result;
+        try {
+            result = postClient.getPostSummary(barId, postId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {   // SUCCESS_CODE = "200"
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
     }
 }

@@ -2,6 +2,8 @@ server:
   port: 8081
 
 spring:
+  application:
+    name: post-server
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
@@ -12,6 +14,10 @@ spring:
       maximum-pool-size: 10
       initialization-fail-timeout: 30000  # 启动时预创建连接，超过则启动失败（fail-fast）
       connection-timeout: 5000
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.88.130
 
   data:
     redis:

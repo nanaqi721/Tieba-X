@@ -2,6 +2,7 @@ package com.mint.ai.service;
 
 import com.mint.ai.common.dto.CreateUserRequest;
 import com.mint.ai.common.dto.LoginRequest;
+import com.mint.ai.post.api.vo.PostSummaryVO;
 
 /**
  * 用户模块服务层
@@ -21,4 +22,6 @@ public interface UserService {
      * 用户登出
      */
     void logout();
+
+    PostSummaryVO getPostSummary(String barId,String postId);
 }

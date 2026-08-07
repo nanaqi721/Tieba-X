@@ -1,8 +1,7 @@
-package com.mint.ai.common.execption;
+package com.mint.ai.common.exception;
 
 import com.mint.ai.common.enums.BaseEnums;
 import com.mint.ai.common.enums.IErrorCode;
-import com.mint.ai.common.exception.BizException;
 
 /**
  * 客户端异常

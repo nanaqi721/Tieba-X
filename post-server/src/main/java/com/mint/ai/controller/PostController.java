@@ -4,6 +4,7 @@ import com.mint.ai.common.Result;
 import com.mint.ai.common.vo.CreatePostVO;
 import com.mint.ai.common.dto.CreatePostRequest;
 import com.mint.ai.common.dto.UpdatePostRequest;
+import com.mint.ai.post.api.vo.PostSummaryVO;
 import com.mint.ai.service.PostService;
 import com.mint.ai.utils.Results;
 import jakarta.validation.Valid;
@@ -35,5 +36,11 @@ public class PostController {
     public Result<Void> updatePostById(@PathVariable(value = "barId") String barId, @RequestBody UpdatePostRequest request){
         postService.updatePostById(barId,request);
         return Results.success();
+    }
+
+    @GetMapping("/v1/{barId}")
+    public Result<PostSummaryVO> getPostSummary(@PathVariable("barId") String barId,@RequestParam("postId") String postId){
+        PostSummaryVO postSummaryVO =postService.getPostSummary(barId,postId);
+        return Results.success(postSummaryVO);
     }
 }

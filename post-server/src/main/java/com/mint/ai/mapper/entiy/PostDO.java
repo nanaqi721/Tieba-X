@@ -29,12 +29,12 @@ public class PostDO {
     /**
      *用户id
      */
-    private String user_id;
+    private String userId;
 
     /**
      * 帖子id
      */
-    private String bar_id;
+    private String barId;
 
     /**
      * 帖子标题(最少5字 最多30字）

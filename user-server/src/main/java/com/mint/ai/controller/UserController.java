@@ -1,18 +1,17 @@
 package com.mint.ai.controller;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import com.mint.ai.common.Result;
 import com.mint.ai.common.dto.CreateUserRequest;
 import com.mint.ai.common.dto.LoginRequest;
+import com.mint.ai.post.api.vo.PostSummaryVO;
 import com.mint.ai.service.UserService;
 import com.mint.ai.utils.Results;
 import com.mint.ai.util.DeviceTypeUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * 用户模块控制层
@@ -52,5 +51,13 @@ public class UserController {
     public Result<Void> logout(){
         userService.logout();
         return Results.success();
+    }
+
+    @SaCheckLogin
+    @GetMapping("/v1/posts/{barId}")
+    public Result<PostSummaryVO> getPostSummary(@PathVariable("barId") String barId, @RequestParam("postId") String postId){
+
+        PostSummaryVO postSummaryVO = userService.getPostSummary(barId,postId);
+        return Results.success(postSummaryVO);
     }
 }
