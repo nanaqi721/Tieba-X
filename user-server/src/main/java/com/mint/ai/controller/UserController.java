@@ -1,10 +1,8 @@
 package com.mint.ai.controller;
 
-import cn.dev33.satoken.annotation.SaCheckLogin;
 import com.mint.ai.common.Result;
 import com.mint.ai.common.dto.CreateUserRequest;
 import com.mint.ai.common.dto.LoginRequest;
-import com.mint.ai.post.api.vo.PostSummaryVO;
 import com.mint.ai.service.UserService;
 import com.mint.ai.utils.Results;
 import com.mint.ai.util.DeviceTypeUtil;
@@ -53,11 +51,4 @@ public class UserController {
         return Results.success();
     }
 
-    @SaCheckLogin
-    @GetMapping("/v1/posts/{barId}")
-    public Result<PostSummaryVO> getPostSummary(@PathVariable("barId") String barId, @RequestParam("postId") String postId){
-
-        PostSummaryVO postSummaryVO = userService.getPostSummary(barId,postId);
-        return Results.success(postSummaryVO);
-    }
 }

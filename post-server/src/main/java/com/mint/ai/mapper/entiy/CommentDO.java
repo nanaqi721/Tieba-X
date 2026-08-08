@@ -33,6 +33,8 @@ public class CommentDO {
 
     private Integer status;
 
+    private Integer floor;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

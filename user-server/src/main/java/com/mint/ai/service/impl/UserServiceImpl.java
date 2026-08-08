@@ -18,6 +18,10 @@ import com.mint.ai.common.exception.ServiceException;
 import com.mint.ai.mapper.UserMapper;
 import com.mint.ai.mapper.entiy.UserDO;
 import com.mint.ai.post.api.clients.PostClient;
+import com.mint.ai.post.api.dto.CreateCommentRequest;
+import com.mint.ai.post.api.dto.CreatePostRequest;
+import com.mint.ai.post.api.vo.CreateCommentVO;
+import com.mint.ai.post.api.vo.CreatePostVO;
 import com.mint.ai.post.api.vo.PostSummaryVO;
 import com.mint.ai.service.UserService;
 import feign.FeignException;
@@ -109,6 +113,34 @@ public class UserServiceImpl implements UserService {
             throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
         }
         if (!Result.SUCCESS_CODE.equals(result.getCode())) {   // SUCCESS_CODE = "200"
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public CreateCommentVO createComment(String postId, CreateCommentRequest request) {
+        Result<CreateCommentVO> result;
+        try {
+            result = postClient.createComment(postId, request);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public CreatePostVO createPost(String barId, CreatePostRequest request) {
+        Result<CreatePostVO> result;
+        try {
+            result = postClient.createPost(barId, request);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
             throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
         }
         return result.getData();

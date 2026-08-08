@@ -1,9 +1,9 @@
 package com.mint.ai.controller;
 
 import com.mint.ai.common.Result;
-import com.mint.ai.common.vo.CreatePostVO;
-import com.mint.ai.common.dto.CreatePostRequest;
 import com.mint.ai.common.dto.UpdatePostRequest;
+import com.mint.ai.post.api.dto.CreatePostRequest;
+import com.mint.ai.post.api.vo.CreatePostVO;
 import com.mint.ai.post.api.vo.PostSummaryVO;
 import com.mint.ai.service.PostService;
 import com.mint.ai.utils.Results;

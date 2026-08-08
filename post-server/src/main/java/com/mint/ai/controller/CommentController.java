@@ -1,22 +1,26 @@
 package com.mint.ai.controller;
 
 import com.mint.ai.common.Result;
+import com.mint.ai.post.api.dto.CreateCommentRequest;
+import com.mint.ai.post.api.vo.CreateCommentVO;
+import com.mint.ai.service.CommentService;
 import com.mint.ai.utils.Results;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * 评论控制层
  */
 @RestController
 @RequestMapping("/api/posts")
+@RequiredArgsConstructor
 public class CommentController {
 
+    private final CommentService commentService;
     @PostMapping("/v1/{postId}/comments")
-    public Result<Void> createComments(){
-
-        return Results.success();
+    public Result<CreateCommentVO> createComment(@PathVariable("postId") String postId, @Valid @RequestBody CreateCommentRequest request){
+        return Results.success(commentService.createComment(postId, request));
     }
 
 }

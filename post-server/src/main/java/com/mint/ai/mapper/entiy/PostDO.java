@@ -77,6 +77,11 @@ public class PostDO {
     private LocalDateTime lastReplyTime;
 
     /**
+     * 最后的楼层
+     */
+    private Integer lastFloor;
+
+    /**
      * 创建时间
      */
     @TableField(fill = FieldFill.INSERT)

@@ -1,0 +1,134 @@
+package com.mint.ai.service.serviceImpl;
+
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mint.ai.common.coontext.UserContext;
+import com.mint.ai.common.enums.PostErrorCode;
+import com.mint.ai.common.exception.ClientException;
+import com.mint.ai.common.redisKey.RedisKeyConstant;
+import com.mint.ai.post.api.dto.CreateCommentRequest;
+import com.mint.ai.post.api.vo.CreateCommentVO;
+import com.mint.ai.mapper.AttachmentMapper;
+import com.mint.ai.mapper.CommentMapper;
+import com.mint.ai.mapper.PostMapper;
+import com.mint.ai.mapper.entiy.AttachmentDO;
+import com.mint.ai.mapper.entiy.CommentDO;
+import com.mint.ai.mapper.entiy.PostDO;
+import com.mint.ai.service.CommentService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 评论模块实现层
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class CommentServiceImpl implements CommentService {
+
+
+    private final CommentMapper commentMapper;
+
+    private final PostMapper postMapper;
+
+    private final AttachmentMapper attachmentMapper;
+
+    private final StringRedisTemplate stringRedisTemplate;
+    @Override
+    @Transactional
+    public CreateCommentVO createComment(String postId, CreateCommentRequest request) {
+
+        String userId = UserContext.getUserId();
+        if(StrUtil.isBlank(userId)){
+            throw new ClientException("用户未登陆请先登陆");
+        }
+        if(StrUtil.isNotBlank(request.getParentId()) && CollUtil.isNotEmpty(request.getImages())){
+            throw new ClientException("回复楼中楼评论不能使用图片");
+        }
+
+        PostDO postDO = postMapper.selectById(postId);
+        // 如果帖子不存在抛异常
+        if(postDO == null){
+            throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(),null,PostErrorCode.POST_NOT_FOUND);
+        }
+
+        // 构建评论请求体
+        CommentDO commentDO = CommentDO.builder()
+                .postId(postId)
+                .userId(userId)
+                .content(request.getContent())
+                .likeCount(0)
+                .status(0)
+                .build();
+        // 如果父id为空（null 或 ""），建楼；否则为楼中楼回复（不占楼层）
+        if (StrUtil.isBlank(request.getParentId())) {
+            // 行锁原子递增楼数并更新最后回复时间（同一 UPDATE，并发不混乱）
+            postMapper.update(Wrappers.lambdaUpdate(PostDO.class)
+                    .eq(PostDO::getId, postId)
+                    .setSql("last_floor = last_floor + 1")
+                    .set(PostDO::getLastReplyTime, LocalDateTime.now()));
+            Integer lastFloor = postMapper.selectById(postId).getLastFloor();
+            commentDO.setFloor(lastFloor);
+            commentMapper.insert(commentDO);
+            // 顶层评论支持带图
+            List<String> images = request.getImages();
+            if (CollUtil.isNotEmpty(images)) {
+                List<AttachmentDO> attachmentDOS = buildAttachmentWithUrl(images, commentDO.getId());
+                attachmentMapper.batchInsert(attachmentDOS);
+            }
+            // 所有 DB 操作之后写 Redis 计数，失败不滚回评论
+            /**
+             * Q：为什么再所有db后执行
+             * A：如果先执行然后执行数据库发生错误造成数据回滚，评论数虚增加1
+             */
+            incrCommentCount(postId);
+            return CreateCommentVO.builder().id(commentDO.getId()).floor(lastFloor).build();
+        }
+
+        // 楼中楼回复：不占楼层，只更新最后回复时间
+        commentDO.setParentId(request.getParentId());
+        commentMapper.insert(commentDO);
+        postMapper.update(null, Wrappers.lambdaUpdate(PostDO.class)
+                .eq(PostDO::getId, postId)
+                .set(PostDO::getLastReplyTime, LocalDateTime.now()));
+        incrCommentCount(postId);
+        return CreateCommentVO.builder().id(commentDO.getId()).floor(0).build();
+    }
+
+    /**
+     * 评论计数增量写 Redis（失败不滚回评论）
+     */
+    private void incrCommentCount(String postId) {
+        try {
+            stringRedisTemplate.opsForHash()
+                    .increment(String.format(RedisKeyConstant.POST_COUNT_INCR, "comment_count"), postId, 1);
+        } catch (Exception e) {
+            log.warn("评论计数增量写 Redis 失败: postId={}", postId, e);
+        }
+    }
+
+    private List<AttachmentDO> buildAttachmentWithUrl(List<String> urls,String commentId){
+        List<AttachmentDO> list = new ArrayList<>(urls.size());
+        int i = 0;
+        for(String url : urls){
+            AttachmentDO build = AttachmentDO.builder()
+                    .id(String.valueOf(IdWorker.getId()))   // 自定义XML insert 不会自动生成雪花id
+                    .bizType(2)
+                    .bizId(commentId)
+                    .url(url)
+                    .sortOrder(++i)
+                    .build();
+            list.add(build);
+        }
+        return list;
+    }
+}

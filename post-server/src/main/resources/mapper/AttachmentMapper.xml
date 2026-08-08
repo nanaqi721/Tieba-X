@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--全限定类名-->
+<mapper namespace="com.mint.ai.mapper.AttachmentMapper">
+
+    <insert id="batchInsert">
+        INSERT INTO attachment (id, biz_type, biz_id, url, sort_order)
+        VALUES
+        <foreach collection="attachmentDOS" item="item" separator=",">
+            (
+             #{item.id},
+             #{item.bizType},
+             #{item.bizId},
+             #{item.url},
+             #{item.sortOrder}
+            )
+        </foreach>
+    </insert>
+</mapper>

@@ -2,17 +2,18 @@ package com.mint.ai.service.serviceImpl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.esotericsoftware.minlog.Log;
+import com.mint.ai.common.coontext.UserContext;
 import com.mint.ai.common.enums.BaseEnums;
 import com.mint.ai.common.enums.PostErrorCode;
 import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.exception.ServiceException;
 import com.mint.ai.common.redisKey.RedisKeyConstant;
-import com.mint.ai.common.vo.CreatePostVO;
-import com.mint.ai.common.dto.CreatePostRequest;
 import com.mint.ai.common.dto.UpdatePostRequest;
 import com.mint.ai.mapper.PostMapper;
-import com.mint.ai.mapper.entiy.PostDO;
+import com.mint.ai.post.api.dto.CreatePostRequest;
+import com.mint.ai.post.api.vo.CreatePostVO;
 import com.mint.ai.post.api.vo.PostSummaryVO;
+import com.mint.ai.mapper.entiy.PostDO;
 import com.mint.ai.service.PostService;
 import com.mint.ai.utils.MyMapUtils;
 import lombok.RequiredArgsConstructor;
@@ -58,9 +59,13 @@ public class PostServiceImpl implements PostService {
     @Override
     public CreatePostVO createPost(String barId, CreatePostRequest request) {
 
+        String userId = UserContext.getUserId();
+        if(StrUtil.isBlank(userId)){
+            throw new ClientException("请先登陆再创建帖子");
+        }
         PostDO post = PostDO.builder()
                 .barId("1001")
-                .userId("1001")
+                .userId(userId)
                 .title(request.getTitle())
                 .content(request.getContent())
                 .viewCount(0)
