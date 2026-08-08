@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: post-server
+  servlet:
+    multipart:
+      max-file-size: 5MB          # 单文件上限，与 FileServiceImpl.MAX_SIZE 一致
+      max-request-size: 25MB      # 批量上传 5 张 × 5MB
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root

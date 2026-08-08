@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class PostCountFlushJob {
 
-    private static final String[] METRICS = {"view_count","like_count","favorite_count"};
+    private static final String[] METRICS = {"view_count","like_count","favorite_count","comment_count"};
 
     private final PostMapper postMapper;
 
