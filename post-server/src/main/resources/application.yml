@@ -34,6 +34,13 @@ mybatis-plus:
       logic-delete-value: 1 # 逻辑已删除值。可选，默认值为 1
       logic-not-delete-value: 0 # 逻辑未删除值。可选，默认值为 0
 
+aliyun:
+  oss:
+    endpoint: oss-cn-hangzhou.aliyuncs.com   # 节点名
+    access-key-id: ${OSS_ACCESSKEY_ID:}
+    access-key-secret: ${OSS_ACCESSKEY_SECRET:}
+    bucket: teiba-x                       # 桶名称
+
 xxl:
   job:
     accessToken: snow                        # ← 必须与 admin 的 --xxl.job.accessToken=snow 一致
