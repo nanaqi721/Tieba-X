@@ -49,4 +49,68 @@ public class PostController {
     public Result<PostSummaryVO> getPostSummary(@PathVariable("barId") String barId, @RequestParam("postId") String postId){
         return Results.success(userService.getPostSummary(barId, postId));
     }
+
+    /**
+     * 点赞帖子
+     */
+    @SaCheckLogin
+    @PostMapping("/v1/{postId}/like")
+    public Result<Long> postLike(@PathVariable("postId") String postId){
+        return Results.success(userService.postLike(postId));
+    }
+
+    /**
+     * 取消点赞帖子
+     */
+    @SaCheckLogin
+    @DeleteMapping("/v1/{postId}/unlike")
+    public Result<Long> postUnlike(@PathVariable("postId") String postId){
+        return Results.success(userService.postUnlike(postId));
+    }
+
+    /**
+     * 是否已点赞帖子
+     */
+    @SaCheckLogin
+    @GetMapping("/v1/{postId}/liked")
+    public Result<Boolean> postLiked(@PathVariable("postId") String postId){
+        return Results.success(userService.postLiked(postId));
+    }
+
+    /**
+     * 点赞评论
+     */
+    @SaCheckLogin
+    @PostMapping("/v1/comments/{commentId}/like")
+    public Result<Long> commentLike(@PathVariable("commentId") String commentId){
+        return Results.success(userService.commentLike(commentId));
+    }
+
+    /**
+     * 取消点赞评论
+     */
+    @SaCheckLogin
+    @DeleteMapping("/v1/comments/{commentId}/unlike")
+    public Result<Long> commentUnlike(@PathVariable("commentId") String commentId){
+        return Results.success(userService.commentUnlike(commentId));
+    }
+
+    /**
+     * 是否已点赞评论
+     */
+    @SaCheckLogin
+    @GetMapping("/v1/comments/{commentId}/liked")
+    public Result<Boolean> commentLiked(@PathVariable("commentId") String commentId){
+        return Results.success(userService.commentLiked(commentId));
+    }
+
+    /**
+     * 删除评论（作者或楼主，级联删楼中楼）
+     */
+    @SaCheckLogin
+    @DeleteMapping("/v1/comments/{commentId}/delete")
+    public Result<Void> commentDelete(@PathVariable("commentId") String commentId){
+        userService.deleteComment(commentId);
+        return Results.success();
+    }
 }

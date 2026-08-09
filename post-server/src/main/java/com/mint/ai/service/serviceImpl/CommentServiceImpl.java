@@ -5,6 +5,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mint.ai.common.coontext.UserContext;
+import com.mint.ai.common.enums.CommentErrorCode;
 import com.mint.ai.common.enums.PostErrorCode;
 import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.redisKey.RedisKeyConstant;
@@ -47,10 +48,8 @@ public class CommentServiceImpl implements CommentService {
     @Transactional
     public CreateCommentVO createComment(String postId, CreateCommentRequest request) {
 
+        // 登录已由 LoginInterceptor 兜底，此处直接取用户 id
         String userId = UserContext.getUserId();
-        if(StrUtil.isBlank(userId)){
-            throw new ClientException("用户未登陆请先登陆");
-        }
         if(StrUtil.isNotBlank(request.getParentId()) && CollUtil.isNotEmpty(request.getImages())){
             throw new ClientException("回复楼中楼评论不能使用图片");
         }
@@ -104,6 +103,42 @@ public class CommentServiceImpl implements CommentService {
         return CreateCommentVO.builder().id(commentDO.getId()).floor(0).build();
     }
 
+    @Override
+    @Transactional
+    public void deleteComment(String commentId) {
+        String userId = UserContext.getUserId();
+        // 评论存在校验（@TableLogic 已过滤已删）
+        CommentDO commentDO = commentMapper.selectById(commentId);
+        if (commentDO == null) {
+            throw new ClientException(CommentErrorCode.COMMENT_NOT_FOUND.getMessage(), null, CommentErrorCode.COMMENT_NOT_FOUND);
+        }
+        // 权限：评论作者 或 楼主可删（帖子逻辑删除时拿不到楼主，退化为仅作者可删）
+        PostDO postDO = postMapper.selectById(commentDO.getPostId());
+        boolean isAuthor = userId.equals(commentDO.getUserId());
+        boolean isPostOwner = postDO != null && userId.equals(postDO.getUserId());
+        if (!isAuthor && !isPostOwner) {
+            throw new ClientException(CommentErrorCode.COMMENT_NO_PERMISSION.getMessage(), null, CommentErrorCode.COMMENT_NO_PERMISSION);
+        }
+        // 级联收集评论及其楼中楼（软删除，已删的不会再次收集）
+        List<String> deleteIds = new ArrayList<>();
+        collectCommentTree(commentId, deleteIds);
+        commentMapper.deleteBatchIds(deleteIds);
+        // 评论数按实际删除条数回减（楼中楼创建时也计数）
+        decrCommentCount(commentDO.getPostId(), deleteIds.size());
+    }
+
+    /**
+     * 递归收集评论及其子树 id（含自身）
+     */
+    private void collectCommentTree(String parentId, List<String> deleteIds) {
+        deleteIds.add(parentId);
+        List<CommentDO> children = commentMapper.selectList(Wrappers.lambdaQuery(CommentDO.class)
+                .eq(CommentDO::getParentId, parentId));
+        for (CommentDO child : children) {
+            collectCommentTree(child.getId(), deleteIds);
+        }
+    }
+
     /**
      * 评论计数增量写 Redis（失败不滚回评论）
      */
@@ -113,6 +148,18 @@ public class CommentServiceImpl implements CommentService {
                     .increment(String.format(RedisKeyConstant.POST_COUNT_INCR, "comment_count"), postId, 1);
         } catch (Exception e) {
             log.warn("评论计数增量写 Redis 失败: postId={}", postId, e);
+        }
+    }
+
+    /**
+     * 评论计数回减写 Redis（失败不滚回删除）
+     */
+    private void decrCommentCount(String postId, int delta) {
+        try {
+            stringRedisTemplate.opsForHash()
+                    .increment(String.format(RedisKeyConstant.POST_COUNT_INCR, "comment_count"), postId, -delta);
+        } catch (Exception e) {
+            log.warn("评论计数回减写 Redis 失败: postId={}, delta={}", postId, delta, e);
         }
     }
 

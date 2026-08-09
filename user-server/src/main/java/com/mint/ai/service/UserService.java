@@ -44,4 +44,52 @@ public interface UserService {
      * @return 帖子 id
      */
     CreatePostVO createPost(String barId, CreatePostRequest request);
+
+    /**
+     * 点赞帖子（经 Feign 调 post-server）
+     * @param postId 帖子 id
+     * @return 最新点赞数
+     */
+    Long postLike(String postId);
+
+    /**
+     * 取消点赞帖子（经 Feign 调 post-server）
+     * @param postId 帖子 id
+     * @return 最新点赞数
+     */
+    Long postUnlike(String postId);
+
+    /**
+     * 当前用户是否已点赞帖子（经 Feign 调 post-server）
+     * @param postId 帖子 id
+     * @return 是否已点赞
+     */
+    Boolean postLiked(String postId);
+
+    /**
+     * 点赞评论（经 Feign 调 post-server）
+     * @param commentId 评论 id
+     * @return 最新点赞数
+     */
+    Long commentLike(String commentId);
+
+    /**
+     * 取消点赞评论（经 Feign 调 post-server）
+     * @param commentId 评论 id
+     * @return 最新点赞数
+     */
+    Long commentUnlike(String commentId);
+
+    /**
+     * 当前用户是否已点赞评论（经 Feign 调 post-server）
+     * @param commentId 评论 id
+     * @return 是否已点赞
+     */
+    Boolean commentLiked(String commentId);
+
+    /**
+     * 删除评论（作者或楼主，级联删楼中楼，经 Feign 调 post-server）
+     * @param commentId 评论 id
+     */
+    void deleteComment(String commentId);
 }

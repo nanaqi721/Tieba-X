@@ -145,4 +145,101 @@ public class UserServiceImpl implements UserService {
         }
         return result.getData();
     }
+
+    @Override
+    public Long postLike(String postId) {
+        Result<Long> result;
+        try {
+            result = postClient.postLike(postId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public Long postUnlike(String postId) {
+        Result<Long> result;
+        try {
+            result = postClient.postUnlike(postId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public Boolean postLiked(String postId) {
+        Result<Boolean> result;
+        try {
+            result = postClient.postLiked(postId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public Long commentLike(String commentId) {
+        Result<Long> result;
+        try {
+            result = postClient.commentLike(commentId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public Long commentUnlike(String commentId) {
+        Result<Long> result;
+        try {
+            result = postClient.commentUnlike(commentId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public Boolean commentLiked(String commentId) {
+        Result<Boolean> result;
+        try {
+            result = postClient.commentLiked(commentId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public void deleteComment(String commentId) {
+        Result<Void> result;
+        try {
+            result = postClient.commentDelete(commentId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+    }
 }

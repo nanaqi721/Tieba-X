@@ -1,6 +1,9 @@
 package com.mint.ai.service.serviceImpl;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.esotericsoftware.minlog.Log;
 import com.mint.ai.common.coontext.UserContext;
 import com.mint.ai.common.enums.BaseEnums;
@@ -29,7 +32,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
  * 帖子控制层
@@ -59,10 +61,8 @@ public class PostServiceImpl implements PostService {
     @Override
     public CreatePostVO createPost(String barId, CreatePostRequest request) {
 
+        // 登录已由 LoginInterceptor 兜底，此处直接取用户 id
         String userId = UserContext.getUserId();
-        if(StrUtil.isBlank(userId)){
-            throw new ClientException("请先登陆再创建帖子");
-        }
         PostDO post = PostDO.builder()
                 .barId("1001")
                 .userId(userId)
@@ -95,11 +95,16 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public void deletePostById(String barId, String postId) {
+        String userId = UserContext.getUserId();
         // 判断空值
         if(StrUtil.isBlank(barId)){
             throw new ClientException("请不要输入空值");
         }
-        int affected = postMapper.deleteById(postId);
+        LambdaUpdateWrapper<PostDO> wrapper = Wrappers.lambdaUpdate(PostDO.class)
+                .eq(PostDO::getUserId, userId)
+                .eq(PostDO::getId, postId);
+
+        int affected = postMapper.delete(wrapper);
         if(affected == 0){
             throw new ClientException(PostErrorCode.POST_DELETED.getMessage(),null,PostErrorCode.POST_DELETED);
         }
@@ -182,6 +187,12 @@ public class PostServiceImpl implements PostService {
                 PostSummaryVO summaryVO = BeanUtil.toBean(postDO, PostSummaryVO.class);
                 if( summaryVO.getContent().length() > 35){
                     summaryVO.setContent(summaryVO.getContent().substring(0,35) + "...");
+                }
+                // 补上未刷库的点赞增量，保证 缓存 = DB列 + 缓冲（否则缓存过期重建会丢增量）
+                Object pendingLike = stringRedisTemplate.opsForHash().get(
+                        String.format(RedisKeyConstant.POST_COUNT_INCR, "like_count"), postId);
+                if (pendingLike != null) {
+                    summaryVO.setLikeCount(summaryVO.getLikeCount() + Integer.parseInt(pendingLike.toString()));
                 }
                 Map<String, Object> cacheMap = BeanUtil.beanToMap(summaryVO);
                 Map<String, String> postCacheMap = new HashMap<>();

@@ -30,7 +30,6 @@ public class PostCountFlushJob {
 
     private final StringRedisTemplate stringRedisTemplate;
 
-    private final TransactionTemplate transactionTemplate;
 
     @XxlJob("flushPostCount")
     public void flushPostCount() {

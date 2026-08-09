@@ -21,4 +21,6 @@ public final class RedisKeyConstant {
      * 模块：业务：点赞 or 收藏 or 浏览量
      */
     public static final String POST_COUNT_INCR = "post_server:post_count_incr:%s";
+
+    public static final String COMMENT_COUNT_INCR = "comment_server:comment_count_incr:%s";
 }
