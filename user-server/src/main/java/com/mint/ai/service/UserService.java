@@ -67,6 +67,27 @@ public interface UserService {
     Boolean postLiked(String postId);
 
     /**
+     * 收藏帖子（经 Feign 调 post-server）
+     * @param postId 帖子 id
+     * @return 最新收藏数
+     */
+    Long postCollect(String postId);
+
+    /**
+     * 取消收藏帖子（经 Feign 调 post-server）
+     * @param postId 帖子 id
+     * @return 最新收藏数
+     */
+    Long postUncollect(String postId);
+
+    /**
+     * 当前用户是否已收藏帖子（经 Feign 调 post-server）
+     * @param postId 帖子 id
+     * @return 是否已收藏
+     */
+    Boolean postCollected(String postId);
+
+    /**
      * 点赞评论（经 Feign 调 post-server）
      * @param commentId 评论 id
      * @return 最新点赞数

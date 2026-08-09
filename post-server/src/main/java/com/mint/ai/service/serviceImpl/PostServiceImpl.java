@@ -188,11 +188,21 @@ public class PostServiceImpl implements PostService {
                 if( summaryVO.getContent().length() > 35){
                     summaryVO.setContent(summaryVO.getContent().substring(0,35) + "...");
                 }
-                // 补上未刷库的点赞增量，保证 缓存 = DB列 + 缓冲（否则缓存过期重建会丢增量）
+                // 补上未刷库的点赞/收藏增量，保证 缓存 = DB列 + 缓冲（否则缓存过期重建会丢增量）
                 Object pendingLike = stringRedisTemplate.opsForHash().get(
                         String.format(RedisKeyConstant.POST_COUNT_INCR, "like_count"), postId);
                 if (pendingLike != null) {
                     summaryVO.setLikeCount(summaryVO.getLikeCount() + Integer.parseInt(pendingLike.toString()));
+                }
+                Object pendingFavorite = stringRedisTemplate.opsForHash().get(
+                        String.format(RedisKeyConstant.POST_COUNT_INCR, "favorite_count"), postId);
+                if (pendingFavorite != null) {
+                    summaryVO.setFavoriteCount(summaryVO.getFavoriteCount() + Integer.parseInt(pendingFavorite.toString()));
+                }
+                Object pendingComment = stringRedisTemplate.opsForHash().get(
+                        String.format(RedisKeyConstant.POST_COUNT_INCR, "comment_count"), postId);
+                if (pendingComment != null) {
+                    summaryVO.setCommentCount(summaryVO.getCommentCount() + Integer.parseInt(pendingComment.toString()));
                 }
                 Map<String, Object> cacheMap = BeanUtil.beanToMap(summaryVO);
                 Map<String, String> postCacheMap = new HashMap<>();

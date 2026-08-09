@@ -189,6 +189,48 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public Long postCollect(String postId) {
+        Result<Long> result;
+        try {
+            result = postClient.postCollect(postId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public Long postUncollect(String postId) {
+        Result<Long> result;
+        try {
+            result = postClient.postUncollect(postId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public Boolean postCollected(String postId) {
+        Result<Boolean> result;
+        try {
+            result = postClient.postCollected(postId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
     public Long commentLike(String commentId) {
         Result<Long> result;
         try {

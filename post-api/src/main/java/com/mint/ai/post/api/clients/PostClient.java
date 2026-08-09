@@ -38,6 +38,15 @@ public interface PostClient {
     @GetMapping("/v1/{postId}/liked")
     public Result<Boolean> postLiked(@PathVariable("postId") String postId);
 
+    @PostMapping("/v1/{postId}/collect")
+    public Result<Long> postCollect(@PathVariable("postId") String postId);
+
+    @DeleteMapping("/v1/{postId}/uncollect")
+    public Result<Long> postUncollect(@PathVariable("postId") String postId);
+
+    @GetMapping("/v1/{postId}/collected")
+    public Result<Boolean> postCollected(@PathVariable("postId") String postId);
+
     @PostMapping("/v1/comments/{commentId}/like")
     public Result<Long> commentLike(@PathVariable("commentId") String commentId);
 

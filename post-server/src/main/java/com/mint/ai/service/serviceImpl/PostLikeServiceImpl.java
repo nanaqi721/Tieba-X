@@ -69,7 +69,7 @@ public class PostLikeServiceImpl implements PostLikeService {
         String cacheKey = String.format(RedisKeyConstant.POST_CACHE_SUMMARY, postDO.getBarId(), postId);
         Long buf = stringRedisTemplate.execute(LIKE_INCR_SCRIPT,
                 List.of(countKey, cacheKey),
-                postId, "1");
+                postId, "1", "likeCount");
         // 拿的是插入前检查的点赞量即使在此期间有人点赞也不会扰乱计数
         return postDO.getLikeCount() + (buf == null ? 0 : buf);
     }
@@ -96,7 +96,7 @@ public class PostLikeServiceImpl implements PostLikeService {
         String cacheKey = String.format(RedisKeyConstant.POST_CACHE_SUMMARY, postDO.getBarId(), postId);
         Long buf = stringRedisTemplate.execute(LIKE_INCR_SCRIPT,
                 List.of(countKey, cacheKey),
-                postId, "-1");
+                postId, "-1", "likeCount");
         return postDO.getLikeCount() + (buf == null ? 0 : buf);
     }
 

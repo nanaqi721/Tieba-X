@@ -20,7 +20,9 @@ import com.mint.ai.mapper.entiy.PostDO;
 import com.mint.ai.service.CommentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,11 +46,21 @@ public class CommentServiceImpl implements CommentService {
     private final AttachmentMapper attachmentMapper;
 
     private final StringRedisTemplate stringRedisTemplate;
+
+    private static final String COUNT_INCR = "lua/like_incr.lua";
+
+    // lua脚本单例构建
+    private static final DefaultRedisScript<Long> COUNT_INCR_SCRIPT = new DefaultRedisScript<>();
+
+    static {
+        COUNT_INCR_SCRIPT.setLocation(new ClassPathResource(COUNT_INCR));
+        COUNT_INCR_SCRIPT.setResultType(Long.class);
+    }
+
     @Override
     @Transactional
     public CreateCommentVO createComment(String postId, CreateCommentRequest request) {
 
-        // 登录已由 LoginInterceptor 兜底，此处直接取用户 id
         String userId = UserContext.getUserId();
         if(StrUtil.isNotBlank(request.getParentId()) && CollUtil.isNotEmpty(request.getImages())){
             throw new ClientException("回复楼中楼评论不能使用图片");
@@ -89,8 +101,9 @@ public class CommentServiceImpl implements CommentService {
              * Q：为什么再所有db后执行
              * A：如果先执行然后执行数据库发生错误造成数据回滚，评论数虚增加1
              */
-            incrCommentCount(postId);
-            return CreateCommentVO.builder().id(commentDO.getId()).floor(lastFloor).build();
+            Long buf = incrCommentCount(postId, postDO.getBarId());
+            int commentCount = postDO.getCommentCount() + (buf == null ? 0 : buf.intValue());
+            return CreateCommentVO.builder().id(commentDO.getId()).floor(lastFloor).commentCount(commentCount).build();
         }
 
         // 楼中楼回复：不占楼层，只更新最后回复时间
@@ -99,15 +112,16 @@ public class CommentServiceImpl implements CommentService {
         postMapper.update(null, Wrappers.lambdaUpdate(PostDO.class)
                 .eq(PostDO::getId, postId)
                 .set(PostDO::getLastReplyTime, LocalDateTime.now()));
-        incrCommentCount(postId);
-        return CreateCommentVO.builder().id(commentDO.getId()).floor(0).build();
+        Long buf = incrCommentCount(postId, postDO.getBarId());
+        int commentCount = postDO.getCommentCount() + (buf == null ? 0 : buf.intValue());
+        return CreateCommentVO.builder().id(commentDO.getId()).floor(0).commentCount(commentCount).build();
     }
 
     @Override
     @Transactional
     public void deleteComment(String commentId) {
         String userId = UserContext.getUserId();
-        // 评论存在校验（@TableLogic 已过滤已删）
+
         CommentDO commentDO = commentMapper.selectById(commentId);
         if (commentDO == null) {
             throw new ClientException(CommentErrorCode.COMMENT_NOT_FOUND.getMessage(), null, CommentErrorCode.COMMENT_NOT_FOUND);
@@ -119,12 +133,12 @@ public class CommentServiceImpl implements CommentService {
         if (!isAuthor && !isPostOwner) {
             throw new ClientException(CommentErrorCode.COMMENT_NO_PERMISSION.getMessage(), null, CommentErrorCode.COMMENT_NO_PERMISSION);
         }
-        // 级联收集评论及其楼中楼（软删除，已删的不会再次收集）
+        // 级联收集评论及其楼中楼
         List<String> deleteIds = new ArrayList<>();
         collectCommentTree(commentId, deleteIds);
         commentMapper.deleteBatchIds(deleteIds);
-        // 评论数按实际删除条数回减（楼中楼创建时也计数）
-        decrCommentCount(commentDO.getPostId(), deleteIds.size());
+        // 评论数按实际删除条数回减（楼中楼创建时也计数）；帖子已删时拿不到 barId，退化为仅更新缓冲
+        decrCommentCount(commentDO.getPostId(), postDO == null ? null : postDO.getBarId(), deleteIds.size());
     }
 
     /**
@@ -140,24 +154,36 @@ public class CommentServiceImpl implements CommentService {
     }
 
     /**
-     * 评论计数增量写 Redis（失败不滚回评论）
+     * 评论计数增量写 Redis（失败不滚回评论），返回缓冲增量值（供计算最新评论数）
      */
-    private void incrCommentCount(String postId) {
+    private Long incrCommentCount(String postId, String barId) {
         try {
-            stringRedisTemplate.opsForHash()
-                    .increment(String.format(RedisKeyConstant.POST_COUNT_INCR, "comment_count"), postId, 1);
+            // 计数缓冲 + 摘要缓存同步更新（lua 一步完成），与点赞/收藏同脚本
+            return stringRedisTemplate.execute(COUNT_INCR_SCRIPT,
+                    List.of(String.format(RedisKeyConstant.POST_COUNT_INCR, "comment_count"),
+                            String.format(RedisKeyConstant.POST_CACHE_SUMMARY, barId, postId)),
+                    postId, "1", "commentCount");
         } catch (Exception e) {
             log.warn("评论计数增量写 Redis 失败: postId={}", postId, e);
+            return null;
         }
     }
 
     /**
      * 评论计数回减写 Redis（失败不滚回删除）
      */
-    private void decrCommentCount(String postId, int delta) {
+    private void decrCommentCount(String postId, String barId, int delta) {
         try {
-            stringRedisTemplate.opsForHash()
-                    .increment(String.format(RedisKeyConstant.POST_COUNT_INCR, "comment_count"), postId, -delta);
+            // 帖子已删时 barId 为 null，拿不到摘要缓存 key，退化为仅更新缓冲
+            if (StrUtil.isBlank(barId)) {
+                stringRedisTemplate.opsForHash()
+                        .increment(String.format(RedisKeyConstant.POST_COUNT_INCR, "comment_count"), postId, -delta);
+                return;
+            }
+            stringRedisTemplate.execute(COUNT_INCR_SCRIPT,
+                    List.of(String.format(RedisKeyConstant.POST_COUNT_INCR, "comment_count"),
+                            String.format(RedisKeyConstant.POST_CACHE_SUMMARY, barId, postId)),
+                    postId, String.valueOf(-delta), "commentCount");
         } catch (Exception e) {
             log.warn("评论计数回减写 Redis 失败: postId={}, delta={}", postId, delta, e);
         }

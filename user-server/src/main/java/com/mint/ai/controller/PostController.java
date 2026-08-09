@@ -78,6 +78,33 @@ public class PostController {
     }
 
     /**
+     * 收藏帖子
+     */
+    @SaCheckLogin
+    @PostMapping("/v1/{postId}/collect")
+    public Result<Long> postCollect(@PathVariable("postId") String postId){
+        return Results.success(userService.postCollect(postId));
+    }
+
+    /**
+     * 取消收藏帖子
+     */
+    @SaCheckLogin
+    @DeleteMapping("/v1/{postId}/uncollect")
+    public Result<Long> postUncollect(@PathVariable("postId") String postId){
+        return Results.success(userService.postUncollect(postId));
+    }
+
+    /**
+     * 是否已收藏帖子
+     */
+    @SaCheckLogin
+    @GetMapping("/v1/{postId}/collected")
+    public Result<Boolean> postCollected(@PathVariable("postId") String postId){
+        return Results.success(userService.postCollected(postId));
+    }
+
+    /**
      * 点赞评论
      */
     @SaCheckLogin

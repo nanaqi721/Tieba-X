@@ -5,6 +5,7 @@ import com.mint.ai.common.dto.UpdatePostRequest;
 import com.mint.ai.post.api.dto.CreatePostRequest;
 import com.mint.ai.post.api.vo.CreatePostVO;
 import com.mint.ai.post.api.vo.PostSummaryVO;
+import com.mint.ai.service.PostFavoriteService;
 import com.mint.ai.service.PostLikeService;
 import com.mint.ai.service.PostService;
 import com.mint.ai.utils.Results;
@@ -23,6 +24,8 @@ public class PostController {
     private final PostService postService;
 
     private final PostLikeService postLikeService;
+
+    private final PostFavoriteService postFavoriteService;
 
     @PostMapping("/v1/{barId}/create")
     public Result<CreatePostVO> createPost(@PathVariable(value = "barId") String barId, @Valid @RequestBody CreatePostRequest request){
@@ -62,5 +65,20 @@ public class PostController {
     public Result<Boolean> postLiked(@PathVariable("postId") String postId){
 
         return Results.success(postLikeService.postLiked(postId));
+    }
+
+    @PostMapping("/v1/{postId}/collect")
+    public Result<Long> postCollect(@PathVariable("postId") String postId){
+        return Results.success(postFavoriteService.postCollect(postId));
+    }
+
+    @DeleteMapping("/v1/{postId}/uncollect")
+    public Result<Long> postUncollect(@PathVariable("postId") String postId){
+        return Results.success(postFavoriteService.postUncollect(postId));
+    }
+
+    @GetMapping("/v1/{postId}/collected")
+    public Result<Boolean> postCollected(@PathVariable("postId") String postId){
+        return Results.success(postFavoriteService.postCollected(postId));
     }
 }
