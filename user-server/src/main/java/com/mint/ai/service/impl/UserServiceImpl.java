@@ -16,7 +16,7 @@ import com.mint.ai.common.enums.UserErrorCode;
 import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.exception.ServiceException;
 import com.mint.ai.mapper.UserMapper;
-import com.mint.ai.mapper.entiy.UserDO;
+import com.mint.ai.mapper.entity.UserDO;
 import com.mint.ai.post.api.clients.PostClient;
 import com.mint.ai.post.api.dto.CreateCommentRequest;
 import com.mint.ai.post.api.dto.CreatePostRequest;
@@ -26,7 +26,6 @@ import com.mint.ai.post.api.vo.PostSummaryVO;
 import com.mint.ai.service.UserService;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 

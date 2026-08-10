@@ -1,4 +1,4 @@
-package com.mint.ai.mapper.entiy;
+package com.mint.ai.mapper.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.AllArgsConstructor;
@@ -9,23 +9,39 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 帖子收藏实体类
+ * 评论实体
  */
-@TableName("favorite")
+@TableName("comment")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PostFavoriteDO {
+public class CommentDO {
 
     @TableId(type = IdType.ASSIGN_ID)
     private String id;
 
+    private String postId;
+
     private String userId;
 
-    private String postId;
+    private String parentId;
+
+    private String content;
+
+    private Integer likeCount;
+
+    private Integer status;
+
+    private Integer floor;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updateTime;
+
+    @TableLogic
+    private Integer deleted;
 
 }

@@ -1,39 +1,48 @@
-package com.mint.ai.mapper.entiy;
+package com.mint.ai.mapper.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
 
 /**
- * 评论实体
+ * 用户实体·
  */
-@TableName("comment")
+@TableName("user")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CommentDO {
+public class UserDO {
 
     @TableId(type = IdType.ASSIGN_ID)
     private String id;
 
-    private String postId;
+    private String username;
 
-    private String userId;
+    private String passwordHash;
 
-    private String parentId;
+    private String nickname;
 
-    private String content;
+    private String email;
 
-    private Integer likeCount;
+    private String bio;
+
+    private Integer sex;
+
+    private String avatarUrl;
+
+    private Integer role;
 
     private Integer status;
 
-    private Integer floor;
+    private Integer postCount;
+
+    private Integer commentCount;
+
+    private Integer followerCount;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
@@ -43,5 +52,4 @@ public class CommentDO {
 
     @TableLogic
     private Integer deleted;
-
 }

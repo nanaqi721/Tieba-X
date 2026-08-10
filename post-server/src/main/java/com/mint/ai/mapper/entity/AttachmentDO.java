@@ -1,4 +1,4 @@
-package com.mint.ai.mapper.entiy;
+package com.mint.ai.mapper.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;

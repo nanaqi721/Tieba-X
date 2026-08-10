@@ -16,7 +16,7 @@ import com.mint.ai.mapper.PostMapper;
 import com.mint.ai.post.api.dto.CreatePostRequest;
 import com.mint.ai.post.api.vo.CreatePostVO;
 import com.mint.ai.post.api.vo.PostSummaryVO;
-import com.mint.ai.mapper.entiy.PostDO;
+import com.mint.ai.mapper.entity.PostDO;
 import com.mint.ai.service.PostService;
 import com.mint.ai.utils.MyMapUtils;
 import lombok.RequiredArgsConstructor;

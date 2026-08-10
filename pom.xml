@@ -19,6 +19,8 @@
         <module>common</module>
         <module>user-server</module>
         <module>post-api</module>
+        <module>bar-server</module>
+        <module>bar-api</module>
     </modules>
 
 

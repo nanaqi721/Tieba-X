@@ -2,7 +2,7 @@ package com.mint.ai.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.mint.ai.job.PostCountFlushJob;
-import com.mint.ai.mapper.entiy.PostDO;
+import com.mint.ai.mapper.entity.PostDO;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;

@@ -2,7 +2,7 @@ package com.mint.ai.mock.factory;
 
 import com.mint.ai.common.redisKey.RedisKeyConstant;
 import com.mint.ai.mapper.PostMapper;
-import com.mint.ai.mapper.entiy.PostDO;
+import com.mint.ai.mapper.entity.PostDO;
 import jakarta.annotation.Resource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;

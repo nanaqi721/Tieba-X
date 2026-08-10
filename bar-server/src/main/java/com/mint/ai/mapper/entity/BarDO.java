@@ -1,46 +1,41 @@
-package com.mint.ai.mapper.entiy;
+package com.mint.ai.mapper.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
 /**
- * 用户实体·
+ * bar实体类
  */
-@TableName("user")
+@TableName("bar")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class UserDO {
+public class BarDO {
 
     @TableId(type = IdType.ASSIGN_ID)
     private String id;
 
-    private String username;
+    @NotBlank
+    @Size(min = 2,max = 50, message = "吧名在2-50个字之间")
+    private String name;
 
-    private String passwordHash;
-
-    private String nickname;
-
-    private String email;
-
-    private String bio;
-
-    private Integer sex;
+    private String description;
 
     private String avatarUrl;
 
-    private Integer role;
+    private String creatorId;
 
     private Integer status;
 
     private Integer postCount;
-
-    private Integer commentCount;
 
     private Integer followerCount;
 
@@ -52,4 +47,5 @@ public class UserDO {
 
     @TableLogic
     private Integer deleted;
+
 }

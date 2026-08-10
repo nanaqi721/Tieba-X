@@ -1,7 +1,7 @@
 package com.mint.ai.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.mint.ai.mapper.entiy.AttachmentDO;
+import com.mint.ai.mapper.entity.AttachmentDO;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
