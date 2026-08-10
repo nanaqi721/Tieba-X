@@ -4,10 +4,6 @@ server:
 spring:
   application:
     name: post-server
-  servlet:
-    multipart:
-      max-file-size: 5MB          # 单文件上限，与 FileServiceImpl.MAX_SIZE 一致
-      max-request-size: 25MB      # 批量上传 5 张 × 5MB
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
@@ -37,13 +33,6 @@ mybatis-plus:
       logic-delete-field: deleted # 全局逻辑删除字段名(deleted为实体类属性名称)
       logic-delete-value: 1 # 逻辑已删除值。可选，默认值为 1
       logic-not-delete-value: 0 # 逻辑未删除值。可选，默认值为 0
-
-aliyun:
-  oss:
-    endpoint: oss-cn-hangzhou.aliyuncs.com   # 节点名
-    access-key-id: ${OSS_ACCESSKEY_ID:}
-    access-key-secret: ${OSS_ACCESSKEY_SECRET:}
-    bucket: teiba-x                       # 桶名称
 
 xxl:
   job:

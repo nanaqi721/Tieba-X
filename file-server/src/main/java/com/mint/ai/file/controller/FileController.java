@@ -1,8 +1,8 @@
-package com.mint.ai.controller;
+package com.mint.ai.file.controller;
 
 import com.mint.ai.common.Result;
-import com.mint.ai.common.vo.UploadVO;
-import com.mint.ai.service.FileService;
+import com.mint.ai.file.api.vo.UploadVO;
+import com.mint.ai.file.service.FileService;
 import com.mint.ai.utils.Results;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;

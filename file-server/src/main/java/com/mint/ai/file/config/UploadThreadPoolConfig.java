@@ -1,4 +1,4 @@
-package com.mint.ai.config;
+package com.mint.ai.file.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

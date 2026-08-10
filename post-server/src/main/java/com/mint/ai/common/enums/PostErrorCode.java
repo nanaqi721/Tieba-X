@@ -22,10 +22,6 @@ public enum PostErrorCode implements IErrorCode {
     POST_CONTENT_EMPTY("A0205", "帖子内容不能为空"),
     POST_LOCKED("A0206", "帖子已锁定"),
     POST_NO_PERMISSION("A0207", "无权限操作该帖子"),
-    FILE_NOT_NULL("A0251","上传文件不能为空"),
-    FILE_EXCEED_MAX_SIZE("A0252","上传文件超出大小"),
-    FILE_NOT_ALLOW_TYPE("A0253","上传文件格式不正确"),
-    FILE_EXCEED_MAX_NUM("A0254","超出文件上传的数量"),
 
     // ---- 系统端 B02xx ----
     POST_SAVE_ERROR("B0201", "帖子保存失败"),

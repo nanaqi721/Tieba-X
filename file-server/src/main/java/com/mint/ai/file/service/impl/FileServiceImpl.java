@@ -1,17 +1,16 @@
-package com.mint.ai.service.serviceImpl;
+package com.mint.ai.file.service.impl;
 
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import com.aliyun.oss.OSS;
-import com.mint.ai.common.enums.PostErrorCode;
-import com.mint.ai.common.exception.ClientException;
-import com.mint.ai.common.exception.ServiceException;
-import com.mint.ai.common.vo.UploadVO;
-import com.mint.ai.config.OssProperties;
-import com.mint.ai.service.FileService;
+import com.mint.ai.file.api.vo.UploadVO;
+import com.mint.ai.file.config.OssProperties;
+import com.mint.ai.file.enums.FileErrorCode;
+import com.mint.ai.file.exception.ClientException;
+import com.mint.ai.file.exception.ServiceException;
+import com.mint.ai.file.service.FileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -57,10 +56,10 @@ public class FileServiceImpl implements FileService {
     @Override
     public List<UploadVO> uploads(List<MultipartFile> files) {
         if (files == null || files.isEmpty()) {
-            throw new ClientException(PostErrorCode.FILE_NOT_NULL.getMessage(),null,PostErrorCode.FILE_NOT_NULL);
+            throw new ClientException(FileErrorCode.FILE_NOT_NULL.getMessage(),null,FileErrorCode.FILE_NOT_NULL);
         }
         if (files.size() > MAX_NUM) {
-            throw new ClientException(PostErrorCode.FILE_EXCEED_MAX_NUM.getMessage(),null,PostErrorCode.FILE_EXCEED_MAX_NUM);
+            throw new ClientException(FileErrorCode.FILE_EXCEED_MAX_NUM.getMessage(),null,FileErrorCode.FILE_EXCEED_MAX_NUM);
         }
         for (MultipartFile file : files) {
             validate(file);
@@ -92,14 +91,14 @@ public class FileServiceImpl implements FileService {
      */
     private void validate(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new ClientException(PostErrorCode.FILE_NOT_NULL.getMessage(),null,PostErrorCode.FILE_NOT_NULL);
+            throw new ClientException(FileErrorCode.FILE_NOT_NULL.getMessage(),null,FileErrorCode.FILE_NOT_NULL);
         }
         if (file.getSize() > MAX_SIZE) {
-            throw new ClientException(PostErrorCode.FILE_EXCEED_MAX_SIZE.getMessage(),null,PostErrorCode.FILE_EXCEED_MAX_SIZE);
+            throw new ClientException(FileErrorCode.FILE_EXCEED_MAX_SIZE.getMessage(),null,FileErrorCode.FILE_EXCEED_MAX_SIZE);
         }
         String ext = extractExt(file.getOriginalFilename());
         if (!ALLOWED_EXT.contains(ext)) {
-            throw new ClientException(PostErrorCode.FILE_NOT_ALLOW_TYPE.getMessage(),null,PostErrorCode.FILE_NOT_ALLOW_TYPE);
+            throw new ClientException(FileErrorCode.FILE_NOT_ALLOW_TYPE.getMessage(),null,FileErrorCode.FILE_NOT_ALLOW_TYPE);
         }
     }
 

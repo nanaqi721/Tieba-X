@@ -1,0 +1,21 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: file-server
+  servlet:
+    multipart:
+      max-file-size: 5MB          # 单文件上限，与 FileServiceImpl.MAX_SIZE 一致
+      max-request-size: 25MB      # 批量上传 5 张 × 5MB
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.88.130
+
+aliyun:
+  oss:
+    endpoint: oss-cn-hangzhou.aliyuncs.com   # 节点名
+    access-key-id: ${OSS_ACCESSKEY_ID:}
+    access-key-secret: ${OSS_ACCESSKEY_SECRET:}
+    bucket: teiba-x                       # 桶名称

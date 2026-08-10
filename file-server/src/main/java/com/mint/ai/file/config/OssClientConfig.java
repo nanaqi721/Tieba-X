@@ -1,4 +1,4 @@
-package com.mint.ai.config;
+package com.mint.ai.file.config;
 
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;

@@ -1,4 +1,4 @@
-package com.mint.ai.config;
+package com.mint.ai.file.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

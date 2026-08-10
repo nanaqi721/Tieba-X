@@ -21,6 +21,8 @@
         <module>post-api</module>
         <module>bar-server</module>
         <module>bar-api</module>
+        <module>file-server</module>
+        <module>file-api</module>
     </modules>
 
 

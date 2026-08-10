@@ -1,6 +1,6 @@
-package com.mint.ai.service;
+package com.mint.ai.file.service;
 
-import com.mint.ai.common.vo.UploadVO;
+import com.mint.ai.file.api.vo.UploadVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;

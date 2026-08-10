@@ -1,4 +1,4 @@
-package com.mint.ai.common.vo;
+package com.mint.ai.file.api.vo;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
