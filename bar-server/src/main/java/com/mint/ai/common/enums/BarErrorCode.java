@@ -8,9 +8,10 @@ import lombok.Getter;
  */
 @Getter
 @AllArgsConstructor
-public enum BarErrorCode {
+public enum BarErrorCode implements IErrorCode{
 
-    BAR_NOT_FOUND("A0401","帖子不存在");
+    BAR_NOT_FOUND("A0401","吧不存在"),
+    BAR_NAME_EXISTS("A0402","吧名已存在");
 
     private final String code;
 

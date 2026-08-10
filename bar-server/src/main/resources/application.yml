@@ -1,0 +1,48 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: bar-server
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: 123456
+    url: jdbc:mysql://192.168.88.130:3307/teiba_X?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    hikari:
+      minimum-idle: 5          # 池中保持的空闲连接数
+      maximum-pool-size: 10
+      initialization-fail-timeout: 30000  # 启动时预创建连接，超过则启动失败（fail-fast）
+      connection-timeout: 5000
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.88.130
+
+  data:
+    redis:
+      host: 192.168.88.130
+      port: 6379
+      password: 123456
+      database: 2
+      connect-timeout: 5s
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/*.xml
+  global-config:
+    db-config:
+      logic-delete-field: deleted # 全局逻辑删除字段名(deleted为实体类属性名称)
+      logic-delete-value: 1 # 逻辑已删除值。可选，默认值为 1
+      logic-not-delete-value: 0 # 逻辑未删除值。可选，默认值为 0
+
+xxl:
+  job:
+    accessToken: snow                        # ← 必须与 admin 的 --xxl.job.accessToken=snow 一致
+    admin:
+      addresses: http://192.168.88.130:9001/xxl-job-admin   # 用映射后的 9001，不是 8080
+    executor:
+      appname: bar-server-executor
+      ip: 192.168.88.1        # 本机 LAN IP，能被 VM 访问到，别填 127.0.0.1
+      port: 9998             # admin 回调端口（避开 post-server 的 9999）
+      logpath: E:\idea代码\Teiba-X\logs\xxl-job\jobhandler   # Windows 本机路径，目录需存在
+      logretentiondays: 30

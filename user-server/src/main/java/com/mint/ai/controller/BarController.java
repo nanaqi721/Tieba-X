@@ -1,63 +1,67 @@
-package com.mint.ai.contrtroller;
+package com.mint.ai.controller;
 
-import com.mint.ai.common.Result;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import com.mint.ai.bar.api.dto.CreateBarRequest;
 import com.mint.ai.bar.api.vo.BarDetailVO;
-import com.mint.ai.service.BarService;
+import com.mint.ai.common.Result;
+import com.mint.ai.service.UserService;
 import com.mint.ai.utils.Results;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 吧控制层
+ * 吧门面控制层（面向前端，经 Feign 调 bar-server）
  */
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/bars")
+@RequiredArgsConstructor
 public class BarController {
 
-
-    private final BarService barService;
+    private final UserService userService;
 
     /**
-     * 创建吧 返回barId
+     * 创建吧
      */
+    @SaCheckLogin
     @PostMapping("/v1/create")
     public Result<Long> createBar(@Valid @RequestBody CreateBarRequest request){
-        return Results.success(barService.createBar(request));
+        return Results.success(userService.createBar(request));
     }
 
     /**
-     * 查询吧的名称 图标 帖子数 关注数
+     * 查询吧详情（名称/图标/帖子数/关注数）
      */
+    @SaCheckLogin
     @PostMapping("/v1/{barId}")
     public Result<BarDetailVO> queryBar(@PathVariable("barId") String barId){
-
-        return Results.success(barService.queryBar(barId));
+        return Results.success(userService.queryBar(barId));
     }
 
     /**
-     * 关注吧，返回最新粉丝数
+     * 关注吧
      */
+    @SaCheckLogin
     @PostMapping("/v1/{barId}/follow")
     public Result<Long> followBar(@PathVariable("barId") String barId){
-        return Results.success(barService.followBar(barId));
+        return Results.success(userService.followBar(barId));
     }
 
     /**
-     * 取消关注吧，返回最新粉丝数
+     * 取消关注吧
      */
+    @SaCheckLogin
     @DeleteMapping("/v1/{barId}/unfollow")
     public Result<Long> unfollowBar(@PathVariable("barId") String barId){
-        return Results.success(barService.unfollowBar(barId));
+        return Results.success(userService.unfollowBar(barId));
     }
 
     /**
      * 当前用户是否关注了该吧
      */
+    @SaCheckLogin
     @GetMapping("/v1/{barId}/followed")
     public Result<Boolean> isFollowed(@PathVariable("barId") String barId){
-        return Results.success(barService.isFollowed(barId));
+        return Results.success(userService.isFollowed(barId));
     }
 }

@@ -64,7 +64,7 @@ public class PostServiceImpl implements PostService {
         // 登录已由 LoginInterceptor 兜底，此处直接取用户 id
         String userId = UserContext.getUserId();
         PostDO post = PostDO.builder()
-                .barId("1001")
+                .barId(barId)
                 .userId(userId)
                 .title(request.getTitle())
                 .content(request.getContent())
@@ -87,6 +87,11 @@ public class PostServiceImpl implements PostService {
         stringRedisTemplate.execute(HSET_WITH_TTL_SCRIPT,
                 List.of(String.format(RedisKeyConstant.POST_CACHE_SUMMARY,barId,post.getId())),
                 args.toArray());
+
+        // 清除历史空缓存，避免"帖子已创建但空缓存未过期"导致查询误判不存在
+        stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_NULL_CACHE_SUMMARY, barId, post.getId()));
+        // 帖子数增量入 buffer，由 bar-server 定时任务刷入 bar.post_count
+        stringRedisTemplate.opsForHash().increment(String.format(RedisKeyConstant.BAR_COUNT_INCR, "post_count"), barId, 1);
         return CreatePostVO.builder()
                 .id(post.getId())
                 .build();
@@ -110,6 +115,8 @@ public class PostServiceImpl implements PostService {
         }
         // 删除缓存
         stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_CACHE_SUMMARY,barId,postId));
+        // 帖子数减量入 buffer，由 bar-server 定时任务刷入 bar.post_count
+        stringRedisTemplate.opsForHash().increment(String.format(RedisKeyConstant.BAR_COUNT_INCR, "post_count"), barId, -1);
     }
 
     @Override
@@ -183,27 +190,9 @@ public class PostServiceImpl implements PostService {
                             "", 5, TimeUnit.MINUTES);
                     throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(),null,PostErrorCode.POST_NOT_FOUND);
                 }
-                // 存在设置缓存然后删除空缓存
-                PostSummaryVO summaryVO = BeanUtil.toBean(postDO, PostSummaryVO.class);
-                if( summaryVO.getContent().length() > 35){
-                    summaryVO.setContent(summaryVO.getContent().substring(0,35) + "...");
-                }
-                // 补上未刷库的点赞/收藏增量，保证 缓存 = DB列 + 缓冲（否则缓存过期重建会丢增量）
-                Object pendingLike = stringRedisTemplate.opsForHash().get(
-                        String.format(RedisKeyConstant.POST_COUNT_INCR, "like_count"), postId);
-                if (pendingLike != null) {
-                    summaryVO.setLikeCount(summaryVO.getLikeCount() + Integer.parseInt(pendingLike.toString()));
-                }
-                Object pendingFavorite = stringRedisTemplate.opsForHash().get(
-                        String.format(RedisKeyConstant.POST_COUNT_INCR, "favorite_count"), postId);
-                if (pendingFavorite != null) {
-                    summaryVO.setFavoriteCount(summaryVO.getFavoriteCount() + Integer.parseInt(pendingFavorite.toString()));
-                }
-                Object pendingComment = stringRedisTemplate.opsForHash().get(
-                        String.format(RedisKeyConstant.POST_COUNT_INCR, "comment_count"), postId);
-                if (pendingComment != null) {
-                    summaryVO.setCommentCount(summaryVO.getCommentCount() + Integer.parseInt(pendingComment.toString()));
-                }
+                // 构建摘要 VO（含内容截断 + 补未刷库增量）
+                PostSummaryVO summaryVO = buildSummaryVO(postDO);
+
                 Map<String, Object> cacheMap = BeanUtil.beanToMap(summaryVO);
                 Map<String, String> postCacheMap = new HashMap<>();
                 for(String key : cacheMap.keySet()){
@@ -220,6 +209,8 @@ public class PostServiceImpl implements PostService {
                 stringRedisTemplate.execute(HSET_WITH_TTL_SCRIPT,
                         List.of(String.format(RedisKeyConstant.POST_CACHE_SUMMARY,barId,postId)),
                         args.toArray());
+                // 删除空缓存，避免"帖子已存在但空缓存未过期"导致查询误判不存在
+                stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_NULL_CACHE_SUMMARY, barId, postId));
                 return summaryVO;
             }
         } catch (InterruptedException e) {
@@ -239,13 +230,35 @@ public class PostServiceImpl implements PostService {
         if(postDO == null) {
             throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(),null,PostErrorCode.POST_NOT_FOUND);
         }
+        // 兜底同样补上未刷库增量，与获锁路径行为保持一致
+        return buildSummaryVO(postDO);
 
+    }
+
+    /**
+     * 构建帖子摘要 VO：实体转 VO + 内容截断 + 补上未刷库的增量
+     */
+    private PostSummaryVO buildSummaryVO(PostDO postDO) {
         PostSummaryVO summaryVO = BeanUtil.toBean(postDO, PostSummaryVO.class);
-        if( summaryVO.getContent().length() > 35){
-            summaryVO.setContent(summaryVO.getContent().substring(0,35) + "...");
+        String content = summaryVO.getContent();
+        if (content != null && content.length() > 35) {
+            summaryVO.setContent(content.substring(0, 35) + "...");
         }
+        // 补上未刷库的点赞/收藏/评论/浏览量增量，保证 缓存/兜底 = DB列 + 缓冲
+        summaryVO.setLikeCount(addPendingCount(postDO.getId(), "like_count", summaryVO.getLikeCount()));
+        summaryVO.setFavoriteCount(addPendingCount(postDO.getId(), "favorite_count", summaryVO.getFavoriteCount()));
+        summaryVO.setCommentCount(addPendingCount(postDO.getId(), "comment_count", summaryVO.getCommentCount()));
+        summaryVO.setViewCount(addPendingCount(postDO.getId(), "view_count", summaryVO.getViewCount()));
         return summaryVO;
+    }
 
+    /**
+     * 从增量缓冲 hash 中取该帖的未刷库增量并叠加到基数上
+     */
+    private Integer addPendingCount(String postId, String metric, Integer base) {
+        Object pending = stringRedisTemplate.opsForHash().get(
+                String.format(RedisKeyConstant.POST_COUNT_INCR, metric), postId);
+        return pending == null ? base : base + Integer.parseInt(pending.toString());
     }
 
     private Map<String,String> createCachePost(String postId, CreatePostRequest request,String barId){

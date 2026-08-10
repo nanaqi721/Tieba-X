@@ -8,6 +8,9 @@ import cn.hutool.crypto.digest.BCrypt;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mint.ai.bar.api.clients.BarClient;
+import com.mint.ai.bar.api.dto.CreateBarRequest;
+import com.mint.ai.bar.api.vo.BarDetailVO;
 import com.mint.ai.common.Result;
 import com.mint.ai.common.dto.CreateUserRequest;
 import com.mint.ai.common.dto.LoginRequest;
@@ -37,6 +40,8 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
 
     private final PostClient postClient;
+
+    private final BarClient barClient;
     @Override
     public String register(CreateUserRequest request, String deviceType) {
         LambdaQueryWrapper<UserDO> wrapper = Wrappers.lambdaQuery(UserDO.class)
@@ -282,5 +287,75 @@ public class UserServiceImpl implements UserService {
         if (!Result.SUCCESS_CODE.equals(result.getCode())) {
             throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
         }
+    }
+
+    @Override
+    public Long createBar(CreateBarRequest request) {
+        Result<Long> result;
+        try {
+            result = barClient.createBar(request);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public BarDetailVO queryBar(String barId) {
+        Result<BarDetailVO> result;
+        try {
+            result = barClient.queryBar(barId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public Long followBar(String barId) {
+        Result<Long> result;
+        try {
+            result = barClient.followBar(barId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public Long unfollowBar(String barId) {
+        Result<Long> result;
+        try {
+            result = barClient.unfollowBar(barId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
+    }
+
+    @Override
+    public Boolean isFollowed(String barId) {
+        Result<Boolean> result;
+        try {
+            result = barClient.isFollowed(barId);
+        } catch (FeignException e) {
+            throw new ServiceException(BaseEnums.THIRD_PARTY_ERROR.getMessage(), e, BaseEnums.THIRD_PARTY_ERROR);
+        }
+        if (!Result.SUCCESS_CODE.equals(result.getCode())) {
+            throw new ServiceException(result.getMessage(), null, BaseEnums.SYSTEM_ERROR);
+        }
+        return result.getData();
     }
 }

@@ -1,5 +1,7 @@
 package com.mint.ai.service;
 
+import com.mint.ai.bar.api.dto.CreateBarRequest;
+import com.mint.ai.bar.api.vo.BarDetailVO;
 import com.mint.ai.common.dto.CreateUserRequest;
 import com.mint.ai.common.dto.LoginRequest;
 import com.mint.ai.post.api.dto.CreateCommentRequest;
@@ -113,4 +115,37 @@ public interface UserService {
      * @param commentId 评论 id
      */
     void deleteComment(String commentId);
+
+    /**
+     * 创建吧（经 Feign 调 bar-server）
+     * @param request 吧信息
+     * @return 吧 id
+     */
+    Long createBar(CreateBarRequest request);
+
+    /**
+     * 查询吧详情（名称/图标/帖子数/关注数，经 Feign 调 bar-server）
+     * @param barId 吧 id
+     */
+    BarDetailVO queryBar(String barId);
+
+    /**
+     * 关注吧（经 Feign 调 bar-server）
+     * @param barId 吧 id
+     * @return 最新粉丝数
+     */
+    Long followBar(String barId);
+
+    /**
+     * 取消关注吧（经 Feign 调 bar-server）
+     * @param barId 吧 id
+     * @return 最新粉丝数
+     */
+    Long unfollowBar(String barId);
+
+    /**
+     * 当前用户是否关注了该吧（经 Feign 调 bar-server）
+     * @param barId 吧 id
+     */
+    Boolean isFollowed(String barId);
 }
