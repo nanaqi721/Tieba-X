@@ -8,7 +8,11 @@ import com.mint.ai.post.api.dto.CreateCommentRequest;
 import com.mint.ai.post.api.dto.CreatePostRequest;
 import com.mint.ai.post.api.vo.CreateCommentVO;
 import com.mint.ai.post.api.vo.CreatePostVO;
+import com.mint.ai.post.api.vo.PostDetailVO;
 import com.mint.ai.post.api.vo.PostSummaryVO;
+import com.mint.ai.common.vo.FeedPageVO;
+import com.mint.ai.common.vo.FloorPageResponseVO;
+import com.mint.ai.common.vo.PostDetailPageVO;
 
 /**
  * 用户模块服务层
@@ -30,6 +34,26 @@ public interface UserService {
     void logout();
 
     PostSummaryVO getPostSummary(String barId,String postId);
+
+    /**
+     * 主页帖子流（匿名）：post-server 滑动查询 + bar-server 批量吧详情聚合
+     * @param cursor 游标
+     * @param pageSize 页大小
+     * @return 帖子卡片列表 + 翻页游标
+     */
+    FeedPageVO getFeed(String cursor, Integer pageSize);
+
+    /**
+     * 帖子详情（匿名）：post-server 帖子 + bar-server 吧详情 + 本地 user 表作者聚合
+     * @param postId 帖子 id
+     * @return 帖子 + 吧 + 作者（不含楼层）
+     */
+    PostDetailPageVO getPostDetail(String postId);
+
+    /**
+     * 楼层分页（匿名）：post-server 分页楼层 + 本地 user 表楼层作者昵称聚合
+     */
+    FloorPageResponseVO getFloors(String postId, Integer pageNum, Integer pageSize);
 
     /**
      * 创建评论（经 Feign 调 post-server）
@@ -148,4 +172,6 @@ public interface UserService {
      * @param barId 吧 id
      */
     Boolean isFollowed(String barId);
+
+    void getPost(String postId);
 }

@@ -5,6 +5,9 @@ import com.mint.ai.post.api.dto.CreateCommentRequest;
 import com.mint.ai.post.api.dto.CreatePostRequest;
 import com.mint.ai.post.api.vo.CreateCommentVO;
 import com.mint.ai.post.api.vo.CreatePostVO;
+import com.mint.ai.post.api.vo.FloorPageVO;
+import com.mint.ai.post.api.vo.PostDetailVO;
+import com.mint.ai.post.api.vo.PostHomePageWithCursor;
 import com.mint.ai.post.api.vo.PostSummaryVO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,6 +25,27 @@ public interface PostClient {
 
     @GetMapping("/v1/{barId}")
     public Result<PostSummaryVO> getPostSummary(@PathVariable("barId") String barId, @RequestParam("postId") String postId);
+
+    /**
+     * 帖子详情（content 全量，不含楼层）
+     */
+    @GetMapping("/v1/detail")
+    public Result<PostDetailVO> getPostDetail(@RequestParam("postId") String postId);
+
+    /**
+     * 楼层分页（页码分页，顶层楼层+楼中楼）
+     */
+    @GetMapping("/v1/floors")
+    public Result<FloorPageVO> listFloors(@RequestParam("postId") String postId,
+                                          @RequestParam(value = "pageNum", required = false) Integer pageNum,
+                                          @RequestParam(value = "pageSize", required = false) Integer pageSize);
+
+    /**
+     * 主页帖子按热度游标分页（滑动查询）
+     */
+    @GetMapping("/v1/home/feed")
+    public Result<PostHomePageWithCursor> postHomePage(@RequestParam(value = "cursor", required = false) String cursor,
+                                                       @RequestParam(value = "pageSize", required = false) Integer pageSize);
 
     @PostMapping("/v1/{postId}/comments")
     public Result<CreateCommentVO> createComment(@PathVariable("postId") String postId, @RequestBody CreateCommentRequest request);

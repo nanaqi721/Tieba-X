@@ -1,5 +1,6 @@
 package com.mint.ai.service.serviceImpl;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
@@ -10,7 +11,9 @@ import com.mint.ai.common.enums.PostErrorCode;
 import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.redisKey.RedisKeyConstant;
 import com.mint.ai.post.api.dto.CreateCommentRequest;
+import com.mint.ai.post.api.vo.CommentFloorVO;
 import com.mint.ai.post.api.vo.CreateCommentVO;
+import com.mint.ai.post.api.vo.FloorPageVO;
 import com.mint.ai.mapper.AttachmentMapper;
 import com.mint.ai.mapper.CommentMapper;
 import com.mint.ai.mapper.PostMapper;
@@ -29,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 评论模块实现层
@@ -139,6 +144,51 @@ public class CommentServiceImpl implements CommentService {
         commentMapper.deleteBatchIds(deleteIds);
         // 评论数按实际删除条数回减（楼中楼创建时也计数）；帖子已删时拿不到 barId，退化为仅更新缓冲
         decrCommentCount(commentDO.getPostId(), postDO == null ? null : postDO.getBarId(), deleteIds.size());
+    }
+
+    @Override
+    public FloorPageVO listFloors(String postId, Integer pageNum, Integer pageSize) {
+        int page = (pageNum == null || pageNum < 1) ? 1 : pageNum;
+        int size = pageSize == null ? 10 : pageSize;
+        size = Math.min(Math.max(size, 1), 50);
+        long offset = (long) (page - 1) * size;
+
+        // 顶层楼层总数
+        Long total = commentMapper.selectCount(Wrappers.lambdaQuery(CommentDO.class)
+                .eq(CommentDO::getPostId, postId)
+                .isNull(CommentDO::getParentId));
+        // 本页顶层楼层（项目未配置分页拦截器，手动 LIMIT，与 postHomePage 一致）
+        List<CommentDO> topFloors = commentMapper.selectList(Wrappers.lambdaQuery(CommentDO.class)
+                .eq(CommentDO::getPostId, postId)
+                .isNull(CommentDO::getParentId)
+                .orderByAsc(CommentDO::getFloor)
+                .last("LIMIT " + offset + ", " + size));
+        List<CommentFloorVO> floors = BeanUtil.copyToList(topFloors, CommentFloorVO.class);
+
+        // 楼中楼：按 parentId 分组挂到对应顶层楼层
+        if (CollUtil.isNotEmpty(floors)) {
+            List<String> topIds = floors.stream().map(CommentFloorVO::getId).toList();
+            List<CommentDO> children = commentMapper.selectList(Wrappers.lambdaQuery(CommentDO.class)
+                    .eq(CommentDO::getPostId, postId)
+                    .in(CommentDO::getParentId, topIds)
+                    .orderByAsc(CommentDO::getCreateTime));
+            Map<String, List<CommentFloorVO>> childrenMap = children.stream()
+                    .map(c -> BeanUtil.toBean(c, CommentFloorVO.class))
+                    .collect(Collectors.groupingBy(CommentFloorVO::getParentId));
+            for (CommentFloorVO floor : floors) {
+                floor.setChildren(childrenMap.getOrDefault(floor.getId(), List.of()));
+            }
+        }
+
+        long totalCount = total == null ? 0 : total;
+        long totalPages = (totalCount + size - 1) / size;
+        FloorPageVO vo = new FloorPageVO();
+        vo.setFloors(floors);
+        vo.setTotal(totalCount);
+        vo.setTotalPages(totalPages);
+        vo.setPageNum((long) page);
+        vo.setPageSize((long) size);
+        return vo;
     }
 
     /**

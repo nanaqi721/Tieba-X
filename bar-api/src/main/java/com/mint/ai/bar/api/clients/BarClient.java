@@ -10,6 +10,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * bar模块的 feign
@@ -28,6 +32,12 @@ public interface BarClient {
      */
     @PostMapping("/v1/{barId}")
     Result<BarDetailVO> queryBar(@PathVariable("barId") String barId);
+
+    /**
+     * 批量查询吧详情（吧名 缩略图 帖子数 关注数），返回 barId -> BarDetailVO
+     */
+    @GetMapping("/v1/batch")
+    Result<Map<String, BarDetailVO>> queryBarList(@RequestParam("ids") List<String> ids);
 
     /**
      * 关注吧，返回最新粉丝数

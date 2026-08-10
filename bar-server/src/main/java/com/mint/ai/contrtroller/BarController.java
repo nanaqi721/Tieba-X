@@ -9,6 +9,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * 吧控制层
  */
@@ -59,5 +62,13 @@ public class BarController {
     @GetMapping("/v1/{barId}/followed")
     public Result<Boolean> isFollowed(@PathVariable("barId") String barId){
         return Results.success(barService.isFollowed(barId));
+    }
+
+    /**
+     * 根据批量bar_id查询 吧名 吧缩略图 帖子数 关注数
+     */
+    @GetMapping("/v1/batch")
+    public Result<Map<String, BarDetailVO>> queryBarList(@RequestParam("ids") List<String> ids) {
+        return Results.success(barService.queryBarList(ids));
     }
 }

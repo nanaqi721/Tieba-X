@@ -25,9 +25,10 @@ public class LoginInterceptor implements HandlerInterceptor {
 
     private static final PathPatternParser PARSER = new PathPatternParser();
 
-    /** 白名单：无需登录的公开浏览接口。目前仅 GET 帖子摘要。 */
+    /** 白名单：无需登录的公开浏览接口。GET 帖子摘要/详情/楼层 + 主页 feed（feed 为两段路径需单独列出）。 */
     private static final List<PathPattern> WHITE_LIST = List.of(
-            PARSER.parse("/api/posts/v1/*")
+            PARSER.parse("/api/posts/v1/*"),
+            PARSER.parse("/api/posts/v1/home/feed")
     );
 
     @Override

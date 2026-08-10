@@ -2,10 +2,13 @@ package com.mint.ai.service.serviceImpl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.esotericsoftware.minlog.Log;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mint.ai.common.coontext.UserContext;
+import com.mint.ai.common.cursor.PostHomePageCursor;
 import com.mint.ai.common.enums.BaseEnums;
 import com.mint.ai.common.enums.PostErrorCode;
 import com.mint.ai.common.exception.ClientException;
@@ -15,6 +18,9 @@ import com.mint.ai.common.dto.UpdatePostRequest;
 import com.mint.ai.mapper.PostMapper;
 import com.mint.ai.post.api.dto.CreatePostRequest;
 import com.mint.ai.post.api.vo.CreatePostVO;
+import com.mint.ai.post.api.vo.PostDetailVO;
+import com.mint.ai.post.api.vo.PostHomePageVO;
+import com.mint.ai.post.api.vo.PostHomePageWithCursor;
 import com.mint.ai.post.api.vo.PostSummaryVO;
 import com.mint.ai.mapper.entity.PostDO;
 import com.mint.ai.service.PostService;
@@ -39,6 +45,8 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
+
+    private final ObjectMapper objectMapper;
 
     private final PostMapper postMapper;
 
@@ -233,6 +241,54 @@ public class PostServiceImpl implements PostService {
         // 兜底同样补上未刷库增量，与获锁路径行为保持一致
         return buildSummaryVO(postDO);
 
+    }
+
+    @Override
+    public PostDetailVO getPostDetail(String postId) {
+        PostDO postDO = postMapper.selectById(postId);
+        if (postDO == null) {
+            throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(), null, PostErrorCode.POST_NOT_FOUND);
+        }
+        PostDetailVO detailVO = BeanUtil.toBean(postDO, PostDetailVO.class);
+        // 详情需要全量 content，不走摘要的 35 字截断
+        detailVO.setContent(postDO.getContent());
+        // 补上未刷库的点赞/收藏/评论/浏览量增量
+        detailVO.setLikeCount(addPendingCount(postDO.getId(), "like_count", detailVO.getLikeCount()));
+        detailVO.setFavoriteCount(addPendingCount(postDO.getId(), "favorite_count", detailVO.getFavoriteCount()));
+        detailVO.setCommentCount(addPendingCount(postDO.getId(), "comment_count", detailVO.getCommentCount()));
+        detailVO.setViewCount(addPendingCount(postDO.getId(), "view_count", detailVO.getViewCount()));
+        return detailVO;
+    }
+
+    @Override
+    public PostHomePageWithCursor postHomePage(String cursor, Integer pageSize) {
+        // 首页不传 cursor → null;非法游标兜底为业务异常
+        PostHomePageCursor pageCursor = null;
+        if (StrUtil.isNotBlank(cursor)) {
+            try {
+                pageCursor = JSONUtil.toBean(cursor, PostHomePageCursor.class);
+            } catch (Exception e) {
+                throw new ClientException("游标无效");
+            }
+        }
+        // clamp pageSize 到 [1,10]，默认 10
+        int size = pageSize == null ? 10 : Math.max(1, Math.min(10, pageSize));
+
+        // 多取一行判断是否还有下一页
+        List<PostHomePageVO> list = postMapper.postHomePage(pageCursor, size + 1);
+        if (list.size() > size) {
+            // 截断多取的那条，nextCursor 取应返回的最后一条（hotScore 由 SQL 计算列带出，不回表）
+            list = new ArrayList<>(list.subList(0, size));
+            PostHomePageVO last = list.get(list.size() - 1);
+            PostHomePageCursor nextCursor = PostHomePageCursor.builder()
+                    .postId(last.getPostId())
+                    .score(last.getHotScore())
+                    .build();
+            return new PostHomePageWithCursor().setPostHomePageVOS(list)
+                    .setNextCursor(JSONUtil.toJsonStr(nextCursor))
+                    .setHasMore(true);
+        }
+        return new PostHomePageWithCursor().setPostHomePageVOS(list).setHasMore(false);
     }
 
     /**

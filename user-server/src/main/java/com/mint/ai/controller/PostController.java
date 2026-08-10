@@ -9,6 +9,9 @@ import com.mint.ai.post.api.vo.CreatePostVO;
 import com.mint.ai.post.api.vo.PostSummaryVO;
 import com.mint.ai.service.UserService;
 import com.mint.ai.utils.Results;
+import com.mint.ai.common.vo.FeedPageVO;
+import com.mint.ai.common.vo.FloorPageResponseVO;
+import com.mint.ai.common.vo.PostDetailPageVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -48,6 +51,33 @@ public class PostController {
     @GetMapping("/v1/{barId}")
     public Result<PostSummaryVO> getPostSummary(@PathVariable("barId") String barId, @RequestParam("postId") String postId){
         return Results.success(userService.getPostSummary(barId, postId));
+    }
+
+    /**
+     * 主页帖子流（匿名）：帖子 + 所属吧详情
+     */
+    @GetMapping("/v1/feed")
+    public Result<FeedPageVO> getFeed(@RequestParam(value = "cursor", required = false) String cursor,
+                                      @RequestParam(value = "pageSize", required = false) Integer pageSize){
+        return Results.success(userService.getFeed(cursor, pageSize));
+    }
+
+    /**
+     * 帖子详情（匿名）：帖子 + 所属吧 + 作者
+     */
+    @GetMapping("/v1/detail")
+    public Result<PostDetailPageVO> getPostDetail(@RequestParam("postId") String postId){
+        return Results.success(userService.getPostDetail(postId));
+    }
+
+    /**
+     * 楼层分页（匿名）：顶层楼层 + 楼中楼，作者昵称已填充
+     */
+    @GetMapping("/v1/floors")
+    public Result<FloorPageResponseVO> getFloors(@RequestParam("postId") String postId,
+                                                 @RequestParam(value = "pageNum", required = false) Integer pageNum,
+                                                 @RequestParam(value = "pageSize", required = false) Integer pageSize){
+        return Results.success(userService.getFloors(postId, pageNum, pageSize));
     }
 
     /**
@@ -140,4 +170,6 @@ public class PostController {
         userService.deleteComment(commentId);
         return Results.success();
     }
+
+
 }

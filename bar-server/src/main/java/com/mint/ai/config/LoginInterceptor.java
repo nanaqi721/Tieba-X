@@ -7,9 +7,11 @@ import com.mint.ai.common.enums.BaseEnums;
 import com.mint.ai.utils.Results;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.server.PathContainer;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.util.pattern.PathPattern;
+import org.springframework.web.util.pattern.PathPatternParser;
 
 import java.io.IOException;
 import java.util.List;
@@ -21,8 +23,12 @@ import java.util.List;
 @Component
 public class LoginInterceptor implements HandlerInterceptor {
 
-    /** 白名单：无需登录的公开浏览接口。bar 当前只有创建吧需登录，暂无公开浏览接口，留空。 */
-    private static final List<PathPattern> WHITE_LIST = List.of();
+    private static final PathPatternParser PARSER = new PathPatternParser();
+
+    /** 白名单：无需登录的公开浏览接口。目前为批量吧详情（feed 匿名聚合用）。 */
+    private static final List<PathPattern> WHITE_LIST = List.of(
+            PARSER.parse("/api/bars/v1/batch")
+    );
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws IOException {
@@ -32,7 +38,7 @@ public class LoginInterceptor implements HandlerInterceptor {
         if (hasLogin) {
             UserContext.setUserId(userId);
         }
-        if (hasLogin) {
+        if (isWhiteList(request.getMethod(), request.getServletPath()) || hasLogin) {
             return true;
         }
         // 未登录：HTTP 200 + 业务错误码，与全局异常约定一致
@@ -46,5 +52,12 @@ public class LoginInterceptor implements HandlerInterceptor {
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
         // 防止 ThreadLocal 内存泄漏
         UserContext.removeUserId();
+    }
+
+    private boolean isWhiteList(String method, String servletPath) {
+        if (!"GET".equalsIgnoreCase(method)) {
+            return false;
+        }
+        return WHITE_LIST.stream().anyMatch(p -> p.matches(PathContainer.parsePath(servletPath)));
     }
 }

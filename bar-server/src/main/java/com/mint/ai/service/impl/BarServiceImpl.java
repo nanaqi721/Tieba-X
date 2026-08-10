@@ -1,6 +1,7 @@
 package com.mint.ai.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.esotericsoftware.minlog.Log;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -183,6 +185,27 @@ public class BarServiceImpl implements BarService {
         detailVO.setPostCount(addPendingCount(barId, "post_count", detailVO.getPostCount()));
         detailVO.setFollowerCount(addPendingCount(barId, "follower_count", detailVO.getFollowerCount()));
         return detailVO;
+    }
+
+    @Override
+    public Map<String, BarDetailVO> queryBarList(List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return new HashMap<>();
+        }
+        Map<String, BarDetailVO> result = new HashMap<>();
+        // 去重
+        for (String barId : new LinkedHashSet<>(ids)) {
+            if (StrUtil.isBlank(barId)) {
+                continue;
+            }
+            try {
+                // 复用单吧查询：缓存→空缓存→Redisson锁→建缓存→buffer叠加 全在内
+                result.put(barId, queryBar(barId));
+            } catch (ClientException | ServiceException e) {
+                // "吧不存在"降级为跳过，由调用方兜底"未知吧"
+            }
+        }
+        return result;
     }
 
     /**

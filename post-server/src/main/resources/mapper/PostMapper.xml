@@ -16,4 +16,22 @@
             #{item.id}
         </foreach>
     </update>
+
+    <select id="postHomePage" resultType="com.mint.ai.post.api.vo.PostHomePageVO">
+        SELECT title, content, cover_image, bar_id, id AS postId,
+               (like_count * 5 + view_count * 2 + comment_count * 3) AS hotScore
+        FROM post
+        <where>
+            deleted = 0
+            <if test="cursor != null">
+                AND (
+                    (like_count * 5 + view_count * 2 + comment_count * 3) &lt; #{cursor.score}
+                    OR ((like_count * 5 + view_count * 2 + comment_count * 3) = #{cursor.score} AND id &lt; #{cursor.postId})
+                )
+            </if>
+        </where>
+        ORDER BY (like_count * 5 + view_count * 2 + comment_count * 3) DESC, id DESC
+        LIMIT #{pageSize}
+    </select>
+
 </mapper>
