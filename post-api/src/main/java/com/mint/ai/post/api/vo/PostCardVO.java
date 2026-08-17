@@ -3,10 +3,10 @@ package com.mint.ai.post.api.vo;
 import lombok.Data;
 
 /**
- * 主页帖子卡片：帖子字段 + 所属吧详情（兜底）
+ * 主页帖子卡片：帖子字段 + 所属吧详情
  */
 @Data
-public class FeedPostVO {
+public class PostCardVO {
     private String postId;
     private String title;
     private String content;

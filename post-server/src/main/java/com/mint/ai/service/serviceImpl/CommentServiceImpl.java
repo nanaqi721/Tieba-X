@@ -11,7 +11,7 @@ import com.mint.ai.common.enums.CommentErrorCode;
 import com.mint.ai.common.enums.PostErrorCode;
 import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.redisKey.RedisKeyConstant;
-import com.mint.ai.user.api.vo.UserBriefVO;
+import com.mint.ai.user.api.vo.UserBaseVO;
 import com.mint.ai.post.api.dto.CreateCommentRequest;
 import com.mint.ai.post.api.vo.CommentFloorVO;
 import com.mint.ai.post.api.vo.CreateCommentVO;
@@ -196,9 +196,9 @@ public class CommentServiceImpl implements CommentService {
         if (CollUtil.isNotEmpty(floors)) {
             Set<String> userIds = new HashSet<>();
             collectFloorUserIds(floors, userIds);
-            Map<String, UserBriefVO> userMap = Map.of();
+            Map<String, UserBaseVO> userMap = Map.of();
             if (!userIds.isEmpty()) {
-                Result<Map<String, UserBriefVO>> userResult = userClient.listUserBriefs(new ArrayList<>(userIds));
+                Result<Map<String, UserBaseVO>> userResult = userClient.batchGetUsersByIds(new ArrayList<>(userIds));
                 if (Result.SUCCESS_CODE.equals(userResult.getCode()) && userResult.getData() != null) {
                     userMap = userResult.getData();
                 }
@@ -234,9 +234,9 @@ public class CommentServiceImpl implements CommentService {
     /**
      * CommentFloorVO → FloorVO，填楼层作者昵称并递归挂接楼中楼
      */
-    private FloorVO buildFloorVO(CommentFloorVO floor, Map<String, UserBriefVO> userMap) {
+    private FloorVO buildFloorVO(CommentFloorVO floor, Map<String, UserBaseVO> userMap) {
         FloorVO vo = BeanUtil.copyProperties(floor, FloorVO.class, "children");
-        UserBriefVO user = userMap.get(floor.getUserId());
+        UserBaseVO user = userMap.get(floor.getUserId());
         vo.setNickname(user == null ? "未知用户" : user.getNickname());
         vo.setAvatarUrl(user == null ? null : user.getAvatarUrl());
         if (CollUtil.isNotEmpty(floor.getChildren())) {

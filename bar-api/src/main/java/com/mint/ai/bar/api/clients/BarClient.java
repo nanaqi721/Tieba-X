@@ -1,7 +1,7 @@
 package com.mint.ai.bar.api.clients;
 
 import com.mint.ai.bar.api.dto.CreateBarRequest;
-import com.mint.ai.bar.api.vo.BarDetailVO;
+import com.mint.ai.bar.api.vo.BarBaseVO;
 import com.mint.ai.common.Result;
 import jakarta.validation.Valid;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -31,13 +31,13 @@ public interface BarClient {
      * 查询吧详情（名称 图标 帖子数 关注数）
      */
     @PostMapping("/v1/{barId}")
-    Result<BarDetailVO> queryBar(@PathVariable("barId") String barId);
+    Result<BarBaseVO> queryBar(@PathVariable("barId") String barId);
 
     /**
      * 批量查询吧详情（吧名 缩略图 帖子数 关注数），返回 barId -> BarDetailVO
      */
     @GetMapping("/v1/batch")
-    Result<Map<String, BarDetailVO>> queryBarList(@RequestParam("ids") List<String> ids);
+    Result<Map<String, BarBaseVO>> queryBarList(@RequestParam("ids") List<String> ids);
 
     /**
      * 关注吧，返回最新粉丝数

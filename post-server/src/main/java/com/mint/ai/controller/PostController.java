@@ -1,13 +1,11 @@
 package com.mint.ai.controller;
 
 import com.mint.ai.common.Result;
+import com.mint.ai.common.dto.PostFeedInBarRequest;
 import com.mint.ai.common.dto.UpdatePostRequest;
+import com.mint.ai.common.vo.PostFeedInBarVO;
 import com.mint.ai.post.api.dto.CreatePostRequest;
-import com.mint.ai.post.api.vo.CreatePostVO;
-import com.mint.ai.post.api.vo.FeedPageVO;
-import com.mint.ai.post.api.vo.FloorPageResponseVO;
-import com.mint.ai.post.api.vo.PostDetailPageVO;
-import com.mint.ai.post.api.vo.PostSummaryVO;
+import com.mint.ai.post.api.vo.*;
 import com.mint.ai.service.CommentService;
 import com.mint.ai.service.PostFavoriteService;
 import com.mint.ai.service.PostLikeService;
@@ -16,6 +14,8 @@ import com.mint.ai.utils.Results;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 帖子控制层
@@ -34,8 +34,8 @@ public class PostController {
     private final CommentService commentService;
 
     @PostMapping("/v1/{barId}/create")
-    public Result<CreatePostVO> createPost(@PathVariable(value = "barId") String barId, @Valid @RequestBody CreatePostRequest request){
-        CreatePostVO post = postService.createPost(barId, request);
+    public Result<PostCreateVO> createPost(@PathVariable(value = "barId") String barId, @Valid @RequestBody CreatePostRequest request){
+        PostCreateVO post = postService.createPost(barId, request);
         return Results.success(post);
     }
 
@@ -51,15 +51,15 @@ public class PostController {
         return Results.success();
     }
 
-    @GetMapping("/v1/{barId}")
-    public Result<PostSummaryVO> getPostSummary(@PathVariable("barId") String barId,@RequestParam("postId") String postId){
-        PostSummaryVO postSummaryVO =postService.getPostSummary(barId,postId);
-        return Results.success(postSummaryVO);
+    @PostMapping("/v1/{barId}/home")
+    public Result<PostFeedInBarVO> postFeedInBar(@PathVariable(value = "barId") String barId, @RequestBody PostFeedInBarRequest request){
+        return Results.success(postService.getPostFeedInBar(barId,request));
     }
 
-    @GetMapping("/v1/detail")
-    public Result<PostDetailPageVO> getPostDetail(@RequestParam("postId") String postId){
-        return Results.success(postService.getPostDetail(postId));
+    @GetMapping("/v1/{barId}")
+    public Result<PostSummaryVO> getPostSummary(@PathVariable("barId") String barId,@RequestParam("postId") String request){
+        PostSummaryVO postSummaryVO =postService.getPostSummary(barId,request);
+        return Results.success(postSummaryVO);
     }
 
     @GetMapping("/v1/floors")
@@ -104,8 +104,8 @@ public class PostController {
      * 主页帖子流：按热度游标查询，聚合吧信息
      */
     @GetMapping("/v1/feed")
-    public Result<FeedPageVO> getFeed(@RequestParam(value = "cursor", required = false) String cursor,
-                                      @RequestParam(value = "pageSize", required = false) Integer pageSize){
+    public Result<PostFeedItemVO> getFeed(@RequestParam(value = "cursor", required = false) String cursor,
+                                          @RequestParam(value = "pageSize", required = false) Integer pageSize){
         return Results.success(postService.getFeed(cursor, pageSize));
     }
 

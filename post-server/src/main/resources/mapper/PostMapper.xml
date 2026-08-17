@@ -33,5 +33,50 @@
         ORDER BY (like_count * 5 + view_count * 2 + comment_count * 3) DESC, id DESC
         LIMIT #{pageSize}
     </select>
+    
+    <select id="getPostFeedInBar" resultType="com.mint.ai.post.api.vo.BarPostCardVO">
+        SELECT title,content,view_count,like_count,comment_count,last_reply_time,create_time,user_id,id as postId,
+        (like_count * 5 + view_count * 2 + comment_count * 3) AS hotScore
+        FROM post
+        <where>
+            deleted = 0
+            AND bar_id = #{barId}
+            <if test="cursor != null">
+                <choose>
+                    <when test="orderBy == 'hot'">
+                        AND (
+                        (like_count * 5 + view_count * 2 + comment_count * 3) &lt; #{cursor.score}
+                        OR ((like_count * 5 + view_count * 2 + comment_count * 3) = #{cursor.score} AND id &lt; #{cursor.postId})
+                        )
+                    </when>
+                    <when test="orderBy == 'createTime'">
+                        AND (
+                        (create_time &lt; #{cursor.createTime})
+                        OR (create_time = #{cursor.createTime} AND id &lt; #{cursor.postId})
+                        )
+                    </when>
+                    <otherwise>
+                        AND (
+                        (create_time &lt; #{cursor.createTime})
+                        OR (create_time = #{cursor.createTime} AND id &lt; #{cursor.postId})
+                        )
+                    </otherwise>
+                </choose>
+            </if>
+        </where>
+        ORDER BY
+        <choose>
+            <when test="orderBy == 'hot'">
+                (like_count * 5 + view_count * 2 + comment_count * 3) DESC , id DESC
+            </when>
+            <when test="orderBy == 'createTime'">
+                create_time DESC ,  id DESC
+            </when>
+            <otherwise>
+                create_time DESC ,  id DESC
+            </otherwise>
+        </choose>
+        LIMIT #{pageSize}
+    </select>
 
 </mapper>

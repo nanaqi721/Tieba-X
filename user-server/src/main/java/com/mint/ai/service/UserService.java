@@ -2,7 +2,7 @@ package com.mint.ai.service;
 
 import com.mint.ai.common.dto.CreateUserRequest;
 import com.mint.ai.common.dto.LoginRequest;
-import com.mint.ai.user.api.vo.UserBriefVO;
+import com.mint.ai.user.api.vo.UserBaseVO;
 
 import java.util.List;
 import java.util.Map;
@@ -31,5 +31,5 @@ public interface UserService {
      * @param ids 用户 id 列表
      * @return userId -> UserBriefVO
      */
-    Map<String, UserBriefVO> listUserBriefs(List<String> ids);
+    Map<String, UserBaseVO> batchGetUsersByIds(List<String> ids);
 }

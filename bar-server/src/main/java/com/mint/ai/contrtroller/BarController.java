@@ -2,7 +2,7 @@ package com.mint.ai.contrtroller;
 
 import com.mint.ai.common.Result;
 import com.mint.ai.bar.api.dto.CreateBarRequest;
-import com.mint.ai.bar.api.vo.BarDetailVO;
+import com.mint.ai.bar.api.vo.BarBaseVO;
 import com.mint.ai.service.BarService;
 import com.mint.ai.utils.Results;
 import jakarta.validation.Valid;
@@ -35,7 +35,7 @@ public class BarController {
      * 查询吧的名称 图标 帖子数 关注数
      */
     @PostMapping("/v1/{barId}")
-    public Result<BarDetailVO> queryBar(@PathVariable("barId") String barId){
+    public Result<BarBaseVO> queryBar(@PathVariable("barId") String barId){
 
         return Results.success(barService.queryBar(barId));
     }
@@ -68,7 +68,7 @@ public class BarController {
      * 根据批量bar_id查询 吧名 吧缩略图 帖子数 关注数
      */
     @GetMapping("/v1/batch")
-    public Result<Map<String, BarDetailVO>> queryBarList(@RequestParam("ids") List<String> ids) {
+    public Result<Map<String, BarBaseVO>> queryBarList(@RequestParam("ids") List<String> ids) {
         return Results.success(barService.queryBarList(ids));
     }
 }

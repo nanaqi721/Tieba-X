@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Data
 @Builder
-public class CreatePostVO {
+public class PostCreateVO {
 
     /**
      * 帖子id

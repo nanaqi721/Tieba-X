@@ -3,8 +3,8 @@ package com.mint.ai.controller;
 import com.mint.ai.common.Result;
 import com.mint.ai.common.dto.CreateUserRequest;
 import com.mint.ai.common.dto.LoginRequest;
-import com.mint.ai.user.api.vo.UserBriefVO;
 import com.mint.ai.service.UserService;
+import com.mint.ai.user.api.vo.UserBaseVO;
 import com.mint.ai.utils.Results;
 import com.mint.ai.util.DeviceTypeUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -56,11 +56,11 @@ public class UserController {
     }
 
     /**
-     * 批量查询用户简要信息（跨服务调用：帖子/楼层作者昵称头像），返回 userId -> UserBriefVO
+     * 批量查询用户简要信息（跨服务调用：帖子/楼层作者昵称头像），返回 userId -> UserBaeVo
      */
     @GetMapping("/v1/batch")
-    public Result<Map<String, UserBriefVO>> listUserBriefs(@RequestParam("ids") List<String> ids){
-        return Results.success(userService.listUserBriefs(ids));
+    public Result<Map<String, UserBaseVO>> batchGetUsersByIds(@RequestParam("ids") List<String> ids){
+        return Results.success(userService.batchGetUsersByIds(ids));
     }
 
 }

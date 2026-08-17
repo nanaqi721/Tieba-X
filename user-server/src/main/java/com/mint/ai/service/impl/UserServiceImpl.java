@@ -13,7 +13,7 @@ import com.mint.ai.common.dto.CreateUserRequest;
 import com.mint.ai.common.dto.LoginRequest;
 import com.mint.ai.common.enums.UserErrorCode;
 import com.mint.ai.common.exception.ClientException;
-import com.mint.ai.user.api.vo.UserBriefVO;
+import com.mint.ai.user.api.vo.UserBaseVO;
 import com.mint.ai.mapper.UserMapper;
 import com.mint.ai.mapper.entity.UserDO;
 import com.mint.ai.service.UserService;
@@ -99,11 +99,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Map<String, UserBriefVO> listUserBriefs(List<String> ids) {
+    public Map<String, UserBaseVO> batchGetUsersByIds(List<String> ids) {
         if (CollUtil.isEmpty(ids)) {
             return Map.of();
         }
         List<UserDO> users = userMapper.selectBatchIds(ids);
-        return users.stream().collect(Collectors.toMap(UserDO::getId, v -> BeanUtil.toBean(v, UserBriefVO.class)));
+        return users.stream().collect(Collectors.toMap(UserDO::getId, v -> BeanUtil.toBean(v, UserBaseVO.class)));
     }
 }

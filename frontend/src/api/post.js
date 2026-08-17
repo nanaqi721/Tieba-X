@@ -1,4 +1,4 @@
-import { get } from './request'
+import { get, post } from './request'
 
 /**
  * 帖子相关接口（信息展示阶段，全部匿名可访问）
@@ -18,15 +18,16 @@ export function getFeed(cursor, pageSize) {
 }
 
 /**
- * 帖子详情（帖子 + 所属吧 + 作者，不含楼层）
- * @param {string} postId
- * @returns {Promise<PostDetailPageVO>}
- *   PostDetailPageVO: { postId, barId, barName, barAvatarUrl, title, content, coverImage,
- *                       viewCount, likeCount, commentCount, favoriteCount, lastFloor,
- *                       authorUserId, authorNickname, authorAvatarUrl, createTime }
+ * 吧主页帖子流（游标分页，支持按时间/热度排序）
+ * @param {string} barId 吧 id
+ * @param {{orderBy?: 'hot'|'createTime', pageSize?: number, cursor?: object|null}} body
+ *   orderBy 缺省按 createTime；切换排序时必须把 cursor 置空
+ * @returns {Promise<{cursor: object, data: BarPostCardVO[], hasNext: boolean}>}
+ *   BarPostCardVO: { postId, title, content, viewCount, likeCount, commentCount,
+ *                    lastReplyTime, createTime, hotScore, userId, nickName, avatarUrl }
  */
-export function getPostDetail(postId) {
-  return get('/posts/v1/detail', { postId })
+export function getBarFeed(barId, body) {
+  return post(`/posts/v1/${barId}/home`, body)
 }
 
 /**

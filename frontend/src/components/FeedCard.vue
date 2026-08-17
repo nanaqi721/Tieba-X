@@ -21,7 +21,7 @@
         <!-- 所属吧信息（feed 已聚合返回，后端有兜底值） -->
         <div class="bar">
           <el-avatar :src="post.barAvatarUrl" :size="20" />
-          <span class="bar-name">{{ post.barName || '未知吧' }}</span>
+          <span class="bar-name" @click.stop="goBar">{{ post.barName || '未知吧' }}</span>
           <span class="bar-stat">
             {{ formatCount(post.barPostCount) }} 帖 · {{ formatCount(post.barFollowerCount) }} 关注
           </span>
@@ -52,6 +52,11 @@ const router = useRouter()
 
 function goDetail() {
   router.push(`/post/${props.post.postId}`)
+}
+
+// 点击吧名进入吧主页
+function goBar() {
+  router.push(`/bar/${props.post.barId}`)
 }
 </script>
 
@@ -103,6 +108,11 @@ function goDetail() {
 .bar-name {
   color: #409eff;
   font-size: 13px;
+  cursor: pointer;
+}
+
+.bar-name:hover {
+  text-decoration: underline;
 }
 
 .bar-stat {

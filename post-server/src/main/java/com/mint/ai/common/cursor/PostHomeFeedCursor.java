@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PostHomePageCursor {
+public class PostHomeFeedCursor {
 
     /**
      * 防止同一个分数的在同10 11 然后下一轮就不查11了

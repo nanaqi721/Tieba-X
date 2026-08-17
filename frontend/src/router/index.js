@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
-// 路由表：首页帖子流 + 帖子详情（匿名可看）+ 登录/注册（独立布局）
+// 路由表：首页帖子流 + 吧主页 + 登录/注册（独立布局）
 const routes = [
   {
     path: '/',
@@ -14,10 +14,10 @@ const routes = [
         meta: { title: '首页' },
       },
       {
-        path: 'post/:postId',
-        name: 'postDetail',
-        component: () => import('../views/PostDetailView.vue'),
-        meta: { title: '帖子详情' },
+        path: 'bar/:barId',
+        name: 'barHome',
+        component: () => import('../views/BarHomeView.vue'),
+        meta: { title: '吧主页' },
       },
     ],
   },
@@ -35,7 +35,7 @@ const router = createRouter({
 // 路由守卫：
 // - 标记 requiresAuth 的页面未登录 → 跳登录页并带来源地址
 // - 已登录用户访问登录/注册页 → 直接回首页
-// 目前首页/详情为匿名可看，requiresAuth 留给后续写操作页面使用
+// 目前首页为匿名可看，requiresAuth 留给后续写操作页面使用
 router.beforeEach((to) => {
   const auth = useAuthStore()
   if (to.meta.requiresAuth && !auth.isLoggedIn) {

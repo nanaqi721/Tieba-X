@@ -10,8 +10,8 @@ import java.util.List;
  */
 @Data
 @Accessors(chain = true)
-public class FeedPageVO {
-    private List<FeedPostVO> records;
+public class PostFeedItemVO {
+    private List<PostCardVO> records;
     private String nextCursor;
     private Boolean hasMore;
 }

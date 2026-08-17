@@ -13,7 +13,7 @@ import com.mint.ai.common.enums.FollowTargetType;
 import com.mint.ai.common.excption.ClientException;
 import com.mint.ai.common.excption.ServiceException;
 import com.mint.ai.common.redisKey.BarConstantRedisKey;
-import com.mint.ai.bar.api.vo.BarDetailVO;
+import com.mint.ai.bar.api.vo.BarBaseVO;
 import com.mint.ai.mapper.BarMapper;
 import com.mint.ai.mapper.FollowMapper;
 import com.mint.ai.mapper.entity.BarDO;
@@ -86,14 +86,14 @@ public class BarServiceImpl implements BarService {
     }
 
     @Override
-    public BarDetailVO queryBar(String barId) {
+    public BarBaseVO queryBar(String barId) {
 
         Map<Object, Object> entries = stringRedisTemplate.opsForHash()
                 .entries(String.format(BarConstantRedisKey.BAR_DETAIL_CACHE, barId));
         // 如果缓存存在直接返回
         if(!entries.isEmpty()){
             Map<String, String> stringMap = MyMapUtils.mapToStingMap(entries);
-            BarDetailVO barDetailVO = BeanUtil.mapToBean(stringMap, BarDetailVO.class, false);
+            BarBaseVO barDetailVO = BeanUtil.mapToBean(stringMap, BarBaseVO.class, false);
             return barDetailVO;
         }
 
@@ -117,7 +117,7 @@ public class BarServiceImpl implements BarService {
                 // 如果缓存存在直接返回
                 if(!entries.isEmpty()){
                     Map<String, String> stringMap = MyMapUtils.mapToStingMap(entries);
-                    BarDetailVO barDetailVO = BeanUtil.mapToBean(stringMap, BarDetailVO.class, false);
+                    BarBaseVO barDetailVO = BeanUtil.mapToBean(stringMap, BarBaseVO.class, false);
                     return barDetailVO;
                 }
 
@@ -139,7 +139,7 @@ public class BarServiceImpl implements BarService {
                 }
 
                 // 构建缓存 返回值（postCount/followerCount 叠加未刷库增量）
-                BarDetailVO build = BarDetailVO.builder()
+                BarBaseVO build = BarBaseVO.builder()
                         .name(barDO.getName())
                         .avatarUrl(barDO.getAvatarUrl())
                         .postCount(addPendingCount(barId, "post_count", barDO.getPostCount()))
@@ -181,18 +181,18 @@ public class BarServiceImpl implements BarService {
             throw new ClientException(BarErrorCode.BAR_NOT_FOUND.getMessage(),null,BarErrorCode.BAR_NOT_FOUND);
         }
         // 兜底同样叠加未刷库增量，与获锁路径行为保持一致
-        BarDetailVO detailVO = BeanUtil.toBean(barDO, BarDetailVO.class);
+        BarBaseVO detailVO = BeanUtil.toBean(barDO, BarBaseVO.class);
         detailVO.setPostCount(addPendingCount(barId, "post_count", detailVO.getPostCount()));
         detailVO.setFollowerCount(addPendingCount(barId, "follower_count", detailVO.getFollowerCount()));
         return detailVO;
     }
 
     @Override
-    public Map<String, BarDetailVO> queryBarList(List<String> ids) {
+    public Map<String, BarBaseVO> queryBarList(List<String> ids) {
         if (ids == null || ids.isEmpty()) {
             return new HashMap<>();
         }
-        Map<String, BarDetailVO> result = new HashMap<>();
+        Map<String, BarBaseVO> result = new HashMap<>();
         // 去重
         for (String barId : new LinkedHashSet<>(ids)) {
             if (StrUtil.isBlank(barId)) {

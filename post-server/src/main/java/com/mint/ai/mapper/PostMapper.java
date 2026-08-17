@@ -1,9 +1,11 @@
 package com.mint.ai.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.mint.ai.common.cursor.PostHomePageCursor;
+import com.mint.ai.common.cursor.BarPostFeedCursor;
+import com.mint.ai.common.cursor.PostHomeFeedCursor;
 import com.mint.ai.job.PostCountFlushJob;
 import com.mint.ai.mapper.entity.PostDO;
+import com.mint.ai.post.api.vo.BarPostCardVO;
 import com.mint.ai.post.api.vo.PostHomePageVO;
 import org.apache.ibatis.annotations.Param;
 
@@ -17,5 +19,7 @@ public interface PostMapper extends BaseMapper<PostDO> {
 
     int batchIncrementPostCount(@Param("metric") String metric, @Param("list")List<PostCountFlushJob.CountIncr> list);
 
-    List<PostHomePageVO> postHomePage(@Param("cursor") PostHomePageCursor cursor, @Param("pageSize") Integer pageSize);
+    List<PostHomePageVO> postHomePage(@Param("cursor") PostHomeFeedCursor cursor, @Param("pageSize") Integer pageSize);
+
+    List<BarPostCardVO> getPostFeedInBar(@Param("barId") String barId, @Param("orderBy") String orderBy, @Param("cursor")BarPostFeedCursor cursor,@Param("pageSize") Integer pageSize);
 }

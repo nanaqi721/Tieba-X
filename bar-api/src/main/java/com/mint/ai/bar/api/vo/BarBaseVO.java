@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BarDetailVO {
+public class BarBaseVO {
 
     private String name;
 
