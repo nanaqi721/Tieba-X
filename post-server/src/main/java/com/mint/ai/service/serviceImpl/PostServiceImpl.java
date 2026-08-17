@@ -1,12 +1,16 @@
 package com.mint.ai.service.serviceImpl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.esotericsoftware.minlog.Log;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mint.ai.bar.api.clients.BarClient;
+import com.mint.ai.bar.api.vo.BarDetailVO;
+import com.mint.ai.common.Result;
 import com.mint.ai.common.coontext.UserContext;
 import com.mint.ai.common.cursor.PostHomePageCursor;
 import com.mint.ai.common.enums.BaseEnums;
@@ -15,15 +19,19 @@ import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.exception.ServiceException;
 import com.mint.ai.common.redisKey.RedisKeyConstant;
 import com.mint.ai.common.dto.UpdatePostRequest;
+import com.mint.ai.user.api.vo.UserBriefVO;
 import com.mint.ai.mapper.PostMapper;
 import com.mint.ai.post.api.dto.CreatePostRequest;
 import com.mint.ai.post.api.vo.CreatePostVO;
+import com.mint.ai.post.api.vo.FeedPageVO;
+import com.mint.ai.post.api.vo.FeedPostVO;
+import com.mint.ai.post.api.vo.PostDetailPageVO;
 import com.mint.ai.post.api.vo.PostDetailVO;
 import com.mint.ai.post.api.vo.PostHomePageVO;
-import com.mint.ai.post.api.vo.PostHomePageWithCursor;
 import com.mint.ai.post.api.vo.PostSummaryVO;
 import com.mint.ai.mapper.entity.PostDO;
 import com.mint.ai.service.PostService;
+import com.mint.ai.user.api.clients.UserClient;
 import com.mint.ai.utils.MyMapUtils;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
@@ -54,17 +62,29 @@ public class PostServiceImpl implements PostService {
 
     private final RedissonClient redissonClient;
 
+    private final BarClient barClient;
+
+    private final UserClient userClient;
+
     // lua脚本路径
     private static final String HSET_WITH_TTL = "lua/hset_with_ttl.lua";
+
+    private static final String BAR_POST_COUNT_INCR = "lua/bar_post_count_incr.lua";
 
     // 帖子缓存过期时间
     private static final String POST_CACHE_TTL_SECONDS = "3600";
 
     // 自动初始化脚本
     private static final DefaultRedisScript<Long> HSET_WITH_TTL_SCRIPT = new DefaultRedisScript<>();
+
+    private static final DefaultRedisScript<Long> BAR_POST_COUNT_INCR_SCRIPT = new DefaultRedisScript<>();
+
     static {
         HSET_WITH_TTL_SCRIPT.setLocation(new ClassPathResource(HSET_WITH_TTL));
         HSET_WITH_TTL_SCRIPT.setResultType(Long.class);
+
+        BAR_POST_COUNT_INCR_SCRIPT.setLocation(new ClassPathResource(BAR_POST_COUNT_INCR));
+        BAR_POST_COUNT_INCR_SCRIPT.setResultType(Long.class);
     }
     @Override
     public CreatePostVO createPost(String barId, CreatePostRequest request) {
@@ -98,8 +118,11 @@ public class PostServiceImpl implements PostService {
 
         // 清除历史空缓存，避免"帖子已创建但空缓存未过期"导致查询误判不存在
         stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_NULL_CACHE_SUMMARY, barId, post.getId()));
-        // 帖子数增量入 buffer，由 bar-server 定时任务刷入 bar.post_count
-        stringRedisTemplate.opsForHash().increment(String.format(RedisKeyConstant.BAR_COUNT_INCR, "post_count"), barId, 1);
+        // 帖子数增量入 buffer + 吧详情缓存同步，由 bar-server 定时任务刷入 bar.post_count
+        stringRedisTemplate.execute(BAR_POST_COUNT_INCR_SCRIPT,
+                List.of(String.format(RedisKeyConstant.BAR_COUNT_INCR, "post_count"),
+                        String.format(RedisKeyConstant.BAR_DETAIL_CACHE, barId)),
+                barId, "1", "postCount");
         return CreatePostVO.builder()
                 .id(post.getId())
                 .build();
@@ -123,8 +146,11 @@ public class PostServiceImpl implements PostService {
         }
         // 删除缓存
         stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_CACHE_SUMMARY,barId,postId));
-        // 帖子数减量入 buffer，由 bar-server 定时任务刷入 bar.post_count
-        stringRedisTemplate.opsForHash().increment(String.format(RedisKeyConstant.BAR_COUNT_INCR, "post_count"), barId, -1);
+        // 帖子数减量入 buffer + 吧详情缓存同步，由 bar-server 定时任务刷入 bar.post_count
+        stringRedisTemplate.execute(BAR_POST_COUNT_INCR_SCRIPT,
+                List.of(String.format(RedisKeyConstant.BAR_COUNT_INCR, "post_count"),
+                        String.format(RedisKeyConstant.BAR_DETAIL_CACHE, barId)),
+                barId, "-1", "postCount");
     }
 
     @Override
@@ -244,7 +270,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public PostDetailVO getPostDetail(String postId) {
+    public PostDetailPageVO getPostDetail(String postId) {
         PostDO postDO = postMapper.selectById(postId);
         if (postDO == null) {
             throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(), null, PostErrorCode.POST_NOT_FOUND);
@@ -257,11 +283,43 @@ public class PostServiceImpl implements PostService {
         detailVO.setFavoriteCount(addPendingCount(postDO.getId(), "favorite_count", detailVO.getFavoriteCount()));
         detailVO.setCommentCount(addPendingCount(postDO.getId(), "comment_count", detailVO.getCommentCount()));
         detailVO.setViewCount(addPendingCount(postDO.getId(), "view_count", detailVO.getViewCount()));
-        return detailVO;
+
+        // 组装详情页 VO：帖子字段 + 吧信息 + 作者信息
+        PostDetailPageVO pageVO = BeanUtil.copyProperties(detailVO, PostDetailPageVO.class);
+        pageVO.setPostId(detailVO.getId());
+        pageVO.setAuthorUserId(detailVO.getUserId());
+
+        // 吧信息（bar-server）
+        if (StrUtil.isNotBlank(detailVO.getBarId())) {
+            Result<BarDetailVO> barResult = barClient.queryBar(detailVO.getBarId());
+            if (Result.SUCCESS_CODE.equals(barResult.getCode()) && barResult.getData() != null) {
+                pageVO.setBarName(barResult.getData().getName());
+                pageVO.setBarAvatarUrl(barResult.getData().getAvatarUrl());
+            }
+        }
+        if (StrUtil.isBlank(pageVO.getBarName())) {
+            pageVO.setBarName("未知吧");
+        }
+
+        // 作者信息（user-server）
+        if (StrUtil.isNotBlank(detailVO.getUserId())) {
+            Result<Map<String, UserBriefVO>> userResult = userClient.listUserBriefs(List.of(detailVO.getUserId()));
+            if (Result.SUCCESS_CODE.equals(userResult.getCode()) && userResult.getData() != null) {
+                UserBriefVO author = userResult.getData().get(detailVO.getUserId());
+                if (author != null) {
+                    pageVO.setAuthorNickname(author.getNickname());
+                    pageVO.setAuthorAvatarUrl(author.getAvatarUrl());
+                }
+            }
+        }
+        if (StrUtil.isBlank(pageVO.getAuthorNickname())) {
+            pageVO.setAuthorNickname("未知用户");
+        }
+        return pageVO;
     }
 
     @Override
-    public PostHomePageWithCursor postHomePage(String cursor, Integer pageSize) {
+    public FeedPageVO getFeed(String cursor, Integer pageSize) {
         // 首页不传 cursor → null;非法游标兜底为业务异常
         PostHomePageCursor pageCursor = null;
         if (StrUtil.isNotBlank(cursor)) {
@@ -276,19 +334,56 @@ public class PostServiceImpl implements PostService {
 
         // 多取一行判断是否还有下一页
         List<PostHomePageVO> list = postMapper.postHomePage(pageCursor, size + 1);
-        if (list.size() > size) {
+        boolean hasMore = list.size() > size;
+        if (hasMore) {
             // 截断多取的那条，nextCursor 取应返回的最后一条（hotScore 由 SQL 计算列带出，不回表）
             list = new ArrayList<>(list.subList(0, size));
+        }
+        String nextCursor = null;
+        if (hasMore) {
             PostHomePageVO last = list.get(list.size() - 1);
-            PostHomePageCursor nextCursor = PostHomePageCursor.builder()
+            PostHomePageCursor next = PostHomePageCursor.builder()
                     .postId(last.getPostId())
                     .score(last.getHotScore())
                     .build();
-            return new PostHomePageWithCursor().setPostHomePageVOS(list)
-                    .setNextCursor(JSONUtil.toJsonStr(nextCursor))
-                    .setHasMore(true);
+            nextCursor = JSONUtil.toJsonStr(next);
         }
-        return new PostHomePageWithCursor().setPostHomePageVOS(list).setHasMore(false);
+
+        // 聚合吧信息（bar-server 批量查询）
+        List<FeedPostVO> records = new ArrayList<>(list.size());
+        if (!list.isEmpty()) {
+            List<String> barIds = list.stream()
+                    .map(PostHomePageVO::getBarId)
+                    .filter(StrUtil::isNotBlank)
+                    .distinct()
+                    .toList();
+            Map<String, BarDetailVO> barMap = Map.of();
+            if (!barIds.isEmpty()) {
+                Result<Map<String, BarDetailVO>> barResult = barClient.queryBarList(barIds);
+                if (Result.SUCCESS_CODE.equals(barResult.getCode()) && barResult.getData() != null) {
+                    barMap = barResult.getData();
+                }
+            }
+            for (PostHomePageVO post : list) {
+                FeedPostVO vo = BeanUtil.copyProperties(post, FeedPostVO.class);
+                BarDetailVO bar = barMap.get(post.getBarId());
+                if (bar == null) {
+                    vo.setBarName("未知吧");
+                    vo.setBarPostCount(0);
+                    vo.setBarFollowerCount(0);
+                } else {
+                    vo.setBarName(bar.getName());
+                    vo.setBarAvatarUrl(bar.getAvatarUrl());
+                    vo.setBarPostCount(bar.getPostCount() == null ? 0 : bar.getPostCount());
+                    vo.setBarFollowerCount(bar.getFollowerCount() == null ? 0 : bar.getFollowerCount());
+                }
+                records.add(vo);
+            }
+        }
+
+        return new FeedPageVO().setRecords(records)
+                .setNextCursor(nextCursor)
+                .setHasMore(hasMore);
     }
 
     /**

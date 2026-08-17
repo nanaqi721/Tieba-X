@@ -24,6 +24,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.mint.ai</groupId>
+            <artifactId>user-api</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
@@ -80,22 +86,6 @@
             <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.mint.ai</groupId>
-            <artifactId>post-api</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.mint.ai</groupId>
-            <artifactId>bar-api</artifactId>
-            <version>1.0.0</version>
-        </dependency>
     </dependencies>
 
 </project>

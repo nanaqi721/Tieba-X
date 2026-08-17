@@ -29,4 +29,7 @@ public final class RedisKeyConstant {
      * 注意：与 bar-server BarConstantRedisKey.BAR_COUNT_INCR 同值，跨服务靠命名约定对齐
      */
     public static final String BAR_COUNT_INCR = "bar_server:bar_count_incr:%s";
+
+    // bar的缓存key
+    public static final String BAR_DETAIL_CACHE = "bar_server:bar_cache:%s";
 }

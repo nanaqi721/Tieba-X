@@ -2,7 +2,7 @@ package com.mint.ai.service;
 
 import com.mint.ai.post.api.dto.CreateCommentRequest;
 import com.mint.ai.post.api.vo.CreateCommentVO;
-import com.mint.ai.post.api.vo.FloorPageVO;
+import com.mint.ai.post.api.vo.FloorPageResponseVO;
 
 /**
  * 评论服务层
@@ -17,7 +17,7 @@ public interface CommentService {
     void deleteComment(String commentId);
 
     /**
-     * 楼层分页查询（页码分页）：本页顶层楼层 + 各自楼中楼子树
+     * 楼层分页查询（页码分页）：本页顶层楼层 + 各自楼中楼子树，并聚合楼层作者昵称/头像
      */
-    FloorPageVO listFloors(String postId, Integer pageNum, Integer pageSize);
+    FloorPageResponseVO listFloors(String postId, Integer pageNum, Integer pageSize);
 }

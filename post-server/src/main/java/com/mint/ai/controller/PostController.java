@@ -4,9 +4,9 @@ import com.mint.ai.common.Result;
 import com.mint.ai.common.dto.UpdatePostRequest;
 import com.mint.ai.post.api.dto.CreatePostRequest;
 import com.mint.ai.post.api.vo.CreatePostVO;
-import com.mint.ai.post.api.vo.FloorPageVO;
-import com.mint.ai.post.api.vo.PostDetailVO;
-import com.mint.ai.post.api.vo.PostHomePageWithCursor;
+import com.mint.ai.post.api.vo.FeedPageVO;
+import com.mint.ai.post.api.vo.FloorPageResponseVO;
+import com.mint.ai.post.api.vo.PostDetailPageVO;
 import com.mint.ai.post.api.vo.PostSummaryVO;
 import com.mint.ai.service.CommentService;
 import com.mint.ai.service.PostFavoriteService;
@@ -58,14 +58,14 @@ public class PostController {
     }
 
     @GetMapping("/v1/detail")
-    public Result<PostDetailVO> getPostDetail(@RequestParam("postId") String postId){
+    public Result<PostDetailPageVO> getPostDetail(@RequestParam("postId") String postId){
         return Results.success(postService.getPostDetail(postId));
     }
 
     @GetMapping("/v1/floors")
-    public Result<FloorPageVO> getFloors(@RequestParam("postId") String postId,
-                                         @RequestParam(value = "pageNum", required = false) Integer pageNum,
-                                         @RequestParam(value = "pageSize", required = false) Integer pageSize){
+    public Result<FloorPageResponseVO> getFloors(@RequestParam("postId") String postId,
+                                                 @RequestParam(value = "pageNum", required = false) Integer pageNum,
+                                                 @RequestParam(value = "pageSize", required = false) Integer pageSize){
         return Results.success(commentService.listFloors(postId, pageNum, pageSize));
     }
 
@@ -101,13 +101,13 @@ public class PostController {
     }
 
     /**
-     * 帖子在主页按热度游标查询
+     * 主页帖子流：按热度游标查询，聚合吧信息
      */
-    @GetMapping("/v1/home/feed")
-    public Result<PostHomePageWithCursor> postHomePage(@RequestParam(value = "cursor", required = false) String cursor,
-                                                       @RequestParam(value = "pageSize", required = false) Integer pageSize){
-        return Results.success(postService.postHomePage(cursor, pageSize));
+    @GetMapping("/v1/feed")
+    public Result<FeedPageVO> getFeed(@RequestParam(value = "cursor", required = false) String cursor,
+                                      @RequestParam(value = "pageSize", required = false) Integer pageSize){
+        return Results.success(postService.getFeed(cursor, pageSize));
     }
-    
+
 
 }

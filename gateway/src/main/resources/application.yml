@@ -1,0 +1,51 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.88.130:8848
+    gateway:
+      routes:
+        # 用户 / 认证 -> user-server
+        - id: user-server
+          uri: lb://user-server
+          predicates:
+            - Path=/api/users/**
+        # 文件上传 -> file-server
+        - id: file-server
+          uri: lb://file-server
+          predicates:
+            - Path=/api/files/**
+        # 帖子 -> post-server
+        - id: post-server
+          uri: lb://post-server
+          predicates:
+            - Path=/api/posts/**
+        # 吧 -> bar-server
+        - id: bar-server
+          uri: lb://bar-server
+          predicates:
+            - Path=/api/bars/**
+
+  # 与下游服务共用同一 Redis（sa-token 登录态存在这里，网关才能校验）
+  data:
+    redis:
+      host: 192.168.88.130
+      port: 6379
+      password: 123456
+      database: 2
+      connect-timeout: 5s
+
+# 与 user-server 保持一致，保证能解析下游写入的 token
+sa-token:
+  token-name: satoken        # 请求头/参数名
+  timeout: 2592000           # token 有效期 30 天
+  active-timeout: -1         # 关闭不活跃过期
+  is-concurrent: false       # 同端互斥
+  is-share: false            # 每次登录生成独立 token
+  token-style: uuid
+  is-log: false

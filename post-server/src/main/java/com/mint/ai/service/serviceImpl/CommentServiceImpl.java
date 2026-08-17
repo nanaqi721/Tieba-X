@@ -5,15 +5,18 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mint.ai.common.Result;
 import com.mint.ai.common.coontext.UserContext;
 import com.mint.ai.common.enums.CommentErrorCode;
 import com.mint.ai.common.enums.PostErrorCode;
 import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.redisKey.RedisKeyConstant;
+import com.mint.ai.user.api.vo.UserBriefVO;
 import com.mint.ai.post.api.dto.CreateCommentRequest;
 import com.mint.ai.post.api.vo.CommentFloorVO;
 import com.mint.ai.post.api.vo.CreateCommentVO;
-import com.mint.ai.post.api.vo.FloorPageVO;
+import com.mint.ai.post.api.vo.FloorPageResponseVO;
+import com.mint.ai.post.api.vo.FloorVO;
 import com.mint.ai.mapper.AttachmentMapper;
 import com.mint.ai.mapper.CommentMapper;
 import com.mint.ai.mapper.PostMapper;
@@ -21,6 +24,7 @@ import com.mint.ai.mapper.entity.AttachmentDO;
 import com.mint.ai.mapper.entity.CommentDO;
 import com.mint.ai.mapper.entity.PostDO;
 import com.mint.ai.service.CommentService;
+import com.mint.ai.user.api.clients.UserClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -31,8 +35,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -51,6 +57,8 @@ public class CommentServiceImpl implements CommentService {
     private final AttachmentMapper attachmentMapper;
 
     private final StringRedisTemplate stringRedisTemplate;
+
+    private final UserClient userClient;
 
     private static final String COUNT_INCR = "lua/like_incr.lua";
 
@@ -147,7 +155,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public FloorPageVO listFloors(String postId, Integer pageNum, Integer pageSize) {
+    public FloorPageResponseVO listFloors(String postId, Integer pageNum, Integer pageSize) {
         int page = (pageNum == null || pageNum < 1) ? 1 : pageNum;
         int size = pageSize == null ? 10 : pageSize;
         size = Math.min(Math.max(size, 1), 50);
@@ -157,7 +165,7 @@ public class CommentServiceImpl implements CommentService {
         Long total = commentMapper.selectCount(Wrappers.lambdaQuery(CommentDO.class)
                 .eq(CommentDO::getPostId, postId)
                 .isNull(CommentDO::getParentId));
-        // 本页顶层楼层（项目未配置分页拦截器，手动 LIMIT，与 postHomePage 一致）
+        // 本页顶层楼层（项目未配置分页拦截器，手动 LIMIT，与 getFeed 一致）
         List<CommentDO> topFloors = commentMapper.selectList(Wrappers.lambdaQuery(CommentDO.class)
                 .eq(CommentDO::getPostId, postId)
                 .isNull(CommentDO::getParentId)
@@ -182,12 +190,62 @@ public class CommentServiceImpl implements CommentService {
 
         long totalCount = total == null ? 0 : total;
         long totalPages = (totalCount + size - 1) / size;
-        FloorPageVO vo = new FloorPageVO();
-        vo.setFloors(floors);
-        vo.setTotal(totalCount);
-        vo.setTotalPages(totalPages);
-        vo.setPageNum((long) page);
-        vo.setPageSize((long) size);
+
+        // 聚合楼层作者昵称/头像（user-server 批量查询）
+        List<FloorVO> records = new ArrayList<>(floors.size());
+        if (CollUtil.isNotEmpty(floors)) {
+            Set<String> userIds = new HashSet<>();
+            collectFloorUserIds(floors, userIds);
+            Map<String, UserBriefVO> userMap = Map.of();
+            if (!userIds.isEmpty()) {
+                Result<Map<String, UserBriefVO>> userResult = userClient.listUserBriefs(new ArrayList<>(userIds));
+                if (Result.SUCCESS_CODE.equals(userResult.getCode()) && userResult.getData() != null) {
+                    userMap = userResult.getData();
+                }
+            }
+            for (CommentFloorVO floor : floors) {
+                records.add(buildFloorVO(floor, userMap));
+            }
+        }
+
+        FloorPageResponseVO response = new FloorPageResponseVO();
+        response.setRecords(records);
+        response.setTotal(totalCount);
+        response.setTotalPages(totalPages);
+        response.setPageNum((long) page);
+        response.setPageSize((long) size);
+        return response;
+    }
+
+    /**
+     * 递归收集楼层树中所有作者 userId
+     */
+    private void collectFloorUserIds(List<CommentFloorVO> floors, Set<String> userIds) {
+        for (CommentFloorVO floor : floors) {
+            if (StrUtil.isNotBlank(floor.getUserId())) {
+                userIds.add(floor.getUserId());
+            }
+            if (CollUtil.isNotEmpty(floor.getChildren())) {
+                collectFloorUserIds(floor.getChildren(), userIds);
+            }
+        }
+    }
+
+    /**
+     * CommentFloorVO → FloorVO，填楼层作者昵称并递归挂接楼中楼
+     */
+    private FloorVO buildFloorVO(CommentFloorVO floor, Map<String, UserBriefVO> userMap) {
+        FloorVO vo = BeanUtil.copyProperties(floor, FloorVO.class, "children");
+        UserBriefVO user = userMap.get(floor.getUserId());
+        vo.setNickname(user == null ? "未知用户" : user.getNickname());
+        vo.setAvatarUrl(user == null ? null : user.getAvatarUrl());
+        if (CollUtil.isNotEmpty(floor.getChildren())) {
+            List<FloorVO> children = new ArrayList<>(floor.getChildren().size());
+            for (CommentFloorVO child : floor.getChildren()) {
+                children.add(buildFloorVO(child, userMap));
+            }
+            vo.setChildren(children);
+        }
         return vo;
     }
 

@@ -23,6 +23,8 @@
         <module>bar-api</module>
         <module>file-server</module>
         <module>file-api</module>
+        <module>gateway</module>
+        <module>user-api</module>
     </modules>
 
 
@@ -84,6 +86,12 @@
             <dependency>
                 <groupId>cn.dev33</groupId>
                 <artifactId>sa-token-redis-template</artifactId>
+                <version>${sa-token.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.dev33</groupId>
+                <artifactId>sa-token-reactor-spring-boot3-starter</artifactId>
                 <version>${sa-token.version}</version>
             </dependency>
 

@@ -3,6 +3,7 @@ package com.mint.ai.controller;
 import com.mint.ai.common.Result;
 import com.mint.ai.common.dto.CreateUserRequest;
 import com.mint.ai.common.dto.LoginRequest;
+import com.mint.ai.user.api.vo.UserBriefVO;
 import com.mint.ai.service.UserService;
 import com.mint.ai.utils.Results;
 import com.mint.ai.util.DeviceTypeUtil;
@@ -10,6 +11,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * 用户模块控制层
@@ -49,6 +53,14 @@ public class UserController {
     public Result<Void> logout(){
         userService.logout();
         return Results.success();
+    }
+
+    /**
+     * 批量查询用户简要信息（跨服务调用：帖子/楼层作者昵称头像），返回 userId -> UserBriefVO
+     */
+    @GetMapping("/v1/batch")
+    public Result<Map<String, UserBriefVO>> listUserBriefs(@RequestParam("ids") List<String> ids){
+        return Results.success(userService.listUserBriefs(ids));
     }
 
 }
