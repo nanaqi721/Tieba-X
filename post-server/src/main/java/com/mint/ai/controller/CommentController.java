@@ -22,6 +22,12 @@ public class CommentController {
 
     private final CommentLikeService commentLikeService;
 
+    /**
+     * 创建评论
+     * @param postId 帖子id
+     * @param request
+     * @return
+     */
     @PostMapping("/v1/{postId}/comments")
     public Result<CreateCommentVO> createComment(@PathVariable("postId") String postId, @Valid @RequestBody CreateCommentRequest request){
         return Results.success(commentService.createComment(postId, request));

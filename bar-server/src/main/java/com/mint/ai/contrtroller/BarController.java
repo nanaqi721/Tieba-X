@@ -31,6 +31,12 @@ public class BarController {
         return Results.success(barService.createBar(request));
     }
 
+    @DeleteMapping("/v1/{barId}")
+    public Result<Void> deleteBar(@PathVariable("barId") String barId) {
+        barService.deleteBar(barId);
+        return Results.success();
+    }
+
     /**
      * 查询吧的名称 图标 帖子数 关注数
      */

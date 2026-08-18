@@ -42,6 +42,7 @@ public class SaTokenConfigure {
             "/api/posts/v1/feed",
             "/api/posts/v1/detail",
             "/api/posts/v1/floors",
+            "/api/posts/v1/floors/**",
     };
 
     @Bean

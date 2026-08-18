@@ -14,10 +14,22 @@ const routes = [
         meta: { title: '首页' },
       },
       {
+        path: 'bar/create',
+        name: 'barCreate',
+        component: () => import('../views/BarCreateView.vue'),
+        meta: { title: '创建吧', requiresAuth: true },
+      },
+      {
         path: 'bar/:barId',
         name: 'barHome',
         component: () => import('../views/BarHomeView.vue'),
         meta: { title: '吧主页' },
+      },
+      {
+        path: 'post/:postId',
+        name: 'postDetail',
+        component: () => import('../views/PostDetailView.vue'),
+        meta: { title: '帖子详情' },
       },
     ],
   },

@@ -51,7 +51,10 @@ const props = defineProps({
 const router = useRouter()
 
 function goDetail() {
-  router.push(`/post/${props.post.postId}`)
+  router.push({
+    path: `/post/${props.post.postId}`,
+    query: { barId: props.post.barId },
+  })
 }
 
 // 点击吧名进入吧主页

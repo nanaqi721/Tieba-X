@@ -1,4 +1,4 @@
-import { post } from './request'
+import { del, post } from './request'
 
 /**
  * 吧相关接口
@@ -11,4 +11,12 @@ import { post } from './request'
  */
 export function queryBar(barId) {
   return post(`/bars/v1/${barId}`)
+}
+
+export function createBar(data) {
+  return post('/bars/v1/create', data)
+}
+
+export function deleteBar(barId) {
+  return del(`/bars/v1/${barId}`)
 }

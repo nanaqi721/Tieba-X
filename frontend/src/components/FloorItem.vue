@@ -1,10 +1,15 @@
 <template>
   <div class="floor-item">
-    <!-- 楼层主体 -->
     <div class="floor-head">
       <el-avatar :src="item.avatarUrl" :size="32" />
       <div class="head-info">
-        <div class="nickname">{{ item.nickname || '未知用户' }}</div>
+        <div class="nickname">
+          <span>{{ item.nickname || '未知用户' }}</span>
+          <template v-if="item.replyToNickname">
+            <span class="reply-word">回复</span>
+            <span>{{ item.replyToNickname }}</span>
+          </template>
+        </div>
         <div class="floor-tag">
           <span>{{ floorLabel }}</span>
           <span>{{ formatTime(item.createTime) }}</span>
@@ -14,14 +19,50 @@
 
     <div class="floor-content">{{ item.content }}</div>
 
-    <div class="floor-foot">
-      <span class="like-count">👍 {{ formatCount(item.likeCount) }}</span>
+    <div v-if="item.images && item.images.length > 0" class="comment-images">
+      <el-image
+        v-for="image in item.images"
+        :key="image"
+        :src="image"
+        :preview-src-list="item.images"
+        fit="cover"
+        class="comment-image"
+      />
     </div>
 
-    <!-- 楼中楼子树：递归渲染 -->
+    <div class="floor-foot">
+      <span class="like-count">赞 {{ formatCount(item.likeCount) }}</span>
+      <el-button text size="small" @click.stop="emit('reply', item)">回复</el-button>
+      <el-button text size="small" @click.stop="emit('like', item)">点赞</el-button>
+      <el-button
+        v-if="showViewReplies && item.floor > 0 && Number(item.replyCount || 0) >= 3"
+        text
+        size="small"
+        @click.stop="emit('view-replies', item)"
+      >
+        共 {{ item.replyCount }} 条回复，点击查看
+      </el-button>
+      <el-button
+        v-if="auth.isLoggedIn"
+        text
+        type="danger"
+        size="small"
+        @click.stop="emit('delete', item)"
+      >
+        删除
+      </el-button>
+    </div>
+
     <div v-if="item.children && item.children.length > 0" class="children">
       <div v-for="child in item.children" :key="child.id" class="child">
-        <floor-item :item="child" />
+        <floor-item
+          :item="child"
+          :show-view-replies="showViewReplies"
+          @reply="emit('reply', $event)"
+          @like="emit('like', $event)"
+          @delete="emit('delete', $event)"
+          @view-replies="emit('view-replies', $event)"
+        />
       </div>
     </div>
   </div>
@@ -29,23 +70,24 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useAuthStore } from '../stores/auth'
 import { formatTime, formatCount } from '../utils/format'
 
-/**
- * 楼层节点：递归组件
- * - 顶层楼层 floor 为 1,2,3...，展示 "N 楼"
- * - 楼中楼（parentId 非空）floor 为 0，展示 "回复"
- * - children 挂楼中楼子树，模板内自引用 <floor-item> 递归
- */
+const emit = defineEmits(['reply', 'like', 'delete', 'view-replies'])
+const auth = useAuthStore()
+
 const props = defineProps({
   item: {
     type: Object,
     required: true,
   },
+  showViewReplies: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const floorLabel = computed(() => {
-  if (!props.item) return ''
   return props.item.floor > 0 ? `${props.item.floor} 楼` : '回复'
 })
 </script>
@@ -62,9 +104,22 @@ const floorLabel = computed(() => {
   gap: 10px;
 }
 
+.head-info {
+  min-width: 0;
+}
+
 .nickname {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 14px;
   font-weight: 600;
+}
+
+.reply-word {
+  color: #909399;
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .floor-tag {
@@ -76,26 +131,42 @@ const floorLabel = computed(() => {
 
 .floor-content {
   margin: 8px 0;
-  font-size: 14px;
   line-height: 1.7;
   white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .floor-foot {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
   color: #909399;
   font-size: 12px;
 }
 
-/* 楼中楼缩进，视觉上形成层级 */
+.comment-images {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.comment-image {
+  width: 96px;
+  height: 96px;
+  border-radius: 4px;
+}
+
 .children {
   margin-top: 8px;
   padding-left: 42px;
 }
 
 .child {
-  background: #f5f7fa;
-  border-radius: 4px;
   padding: 0 12px;
   margin-bottom: 6px;
+  background: #f5f7fa;
+  border-radius: 4px;
 }
 </style>

@@ -86,6 +86,21 @@ public class BarServiceImpl implements BarService {
     }
 
     @Override
+    public void deleteBar(String barId) {
+        String userId = UserContext.getUserId();
+        int affected = barMapper.delete(
+                Wrappers.lambdaUpdate(BarDO.class)
+                        .eq(BarDO::getId, barId)
+                        .eq(BarDO::getCreatorId, userId)
+        );
+        if (affected == 0) {
+            throw new ClientException("吧不存在或无权删除");
+        }
+        stringRedisTemplate.delete(String.format(BarConstantRedisKey.BAR_DETAIL_CACHE, barId));
+        stringRedisTemplate.delete(String.format(BarConstantRedisKey.BAR_DETAIL_NULL_CACHE, barId));
+    }
+
+    @Override
     public BarBaseVO queryBar(String barId) {
 
         Map<Object, Object> entries = stringRedisTemplate.opsForHash()

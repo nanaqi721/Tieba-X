@@ -1,4 +1,4 @@
-import { get, post } from './request'
+import { del, get, post, put } from './request'
 
 /**
  * 帖子相关接口（信息展示阶段，全部匿名可访问）
@@ -30,6 +30,22 @@ export function getBarFeed(barId, body) {
   return post(`/posts/v1/${barId}/home`, body)
 }
 
+export function getPostSummary(barId, postId) {
+  return get(`/posts/v1/${barId}`, { postId })
+}
+
+export function createPost(barId, data) {
+  return post(`/posts/v1/${barId}/create`, data)
+}
+
+export function updatePost(barId, data) {
+  return put(`/posts/v1/${barId}/delete`, data)
+}
+
+export function deletePost(barId, postId) {
+  return del(`/posts/v1/${barId}/delete`, { postId })
+}
+
 /**
  * 楼层分页（顶层楼层 + 楼中楼 children 子树）
  * @param {string} postId
@@ -41,4 +57,29 @@ export function getBarFeed(barId, body) {
  */
 export function getFloors(postId, pageNum, pageSize) {
   return get('/posts/v1/floors', { postId, pageNum, pageSize })
+}
+
+export function getReplies(postId, rootId, pageNum, pageSize) {
+  return get(`/posts/v1/floors/${rootId}/replies`, { postId, pageNum, pageSize })
+}
+
+/** 查询主楼及相同 rootId 下的全部回复，返回包含 parentId/rootId 的平铺列表。 */
+export function getFloorThread(postId, floorId) {
+  return get(`/posts/v1/floors/${floorId}/thread`, { postId })
+}
+
+export function createComment(postId, data) {
+  return post(`/posts/v1/${postId}/comments`, data)
+}
+
+export function deleteComment(commentId) {
+  return del(`/posts/v1/comments/${commentId}/delete`)
+}
+
+export function likeComment(commentId) {
+  return post(`/posts/v1/comments/${commentId}/like`)
+}
+
+export function unlikeComment(commentId) {
+  return del(`/posts/v1/comments/${commentId}/unlike`)
 }

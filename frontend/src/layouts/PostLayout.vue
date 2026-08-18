@@ -11,6 +11,7 @@
       <!-- 登录态：未登录显示登录/注册，已登录显示昵称占位 + 退出 -->
       <div class="user-area">
         <template v-if="auth.isLoggedIn">
+          <el-button text @click="$router.push('/bar/create')">创建吧</el-button>
           <el-dropdown @command="handleUserCommand">
             <span class="user-entry">
               <el-icon><User /></el-icon>

@@ -135,7 +135,8 @@ public class PostServiceImpl implements PostService {
         }
         LambdaUpdateWrapper<PostDO> wrapper = Wrappers.lambdaUpdate(PostDO.class)
                 .eq(PostDO::getUserId, userId)
-                .eq(PostDO::getId, postId);
+                .eq(PostDO::getId, postId)
+                .eq(PostDO::getBarId, barId);
 
         int affected = postMapper.delete(wrapper);
         if(affected == 0){
@@ -161,13 +162,21 @@ public class PostServiceImpl implements PostService {
         if(post == null){
             throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(),null,PostErrorCode.POST_NOT_FOUND);
         }
+        if (!barId.equals(post.getBarId())
+                || !UserContext.getUserId().equals(post.getUserId())) {
+            throw new ClientException(PostErrorCode.POST_NO_PERMISSION.getMessage(),
+                    null, PostErrorCode.POST_NO_PERMISSION);
+        }
 
         PostDO nowPost = PostDO.builder()
                 .id(request.getPostId())
                 .title(request.getTitle())
                 .content(request.getContent())
                 .build();
-        postMapper.updateById(nowPost);
+        if (postMapper.updateById(nowPost) != 1) {
+            throw new ClientException(PostErrorCode.POST_UPDATE_ERROR.getMessage(),
+                    null, PostErrorCode.POST_UPDATE_ERROR);
+        }
 
         stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_CACHE_SUMMARY,barId,request.getPostId()));
 
@@ -189,6 +198,16 @@ public class PostServiceImpl implements PostService {
         // 1. 快路径：先查缓存，命中直接返回（不抢锁）
         Map<Object, Object> postSummary = stringRedisTemplate.opsForHash().entries(String.format(RedisKeyConstant.POST_CACHE_SUMMARY, barId, postId));
         if (!postSummary.isEmpty()) {
+            stringRedisTemplate.execute(
+                    BAR_POST_COUNT_INCR_SCRIPT,
+                    List.of(
+                            String.format(RedisKeyConstant.POST_COUNT_INCR, "view_count"),
+                            String.format(RedisKeyConstant.POST_CACHE_SUMMARY, barId, postId)
+                    ),
+                    postId,
+                    "1",
+                    "viewCount"
+            );
             return BeanUtil.toBean(MyMapUtils.mapToStingMap(postSummary), PostSummaryVO.class);
         }
         // 缓存没数据查询空缓存
@@ -242,6 +261,16 @@ public class PostServiceImpl implements PostService {
                         args.toArray());
                 // 删除空缓存，避免"帖子已存在但空缓存未过期"导致查询误判不存在
                 stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_NULL_CACHE_SUMMARY, barId, postId));
+                stringRedisTemplate.execute(
+                        BAR_POST_COUNT_INCR_SCRIPT,
+                        List.of(
+                                String.format(RedisKeyConstant.POST_COUNT_INCR, "view_count"),
+                                String.format(RedisKeyConstant.POST_CACHE_SUMMARY, barId, postId)
+                        ),
+                        postId,
+                        "1",
+                        "viewCount"
+                );
                 return summaryVO;
             }
         } catch (InterruptedException e) {
@@ -255,12 +284,24 @@ public class PostServiceImpl implements PostService {
                 lock.unlock();
             }
         }
+
+        stringRedisTemplate.execute(
+                BAR_POST_COUNT_INCR_SCRIPT,
+                List.of(
+                        String.format(RedisKeyConstant.POST_COUNT_INCR, "view_count"),
+                        String.format(RedisKeyConstant.POST_CACHE_SUMMARY, barId, postId)
+                ),
+                postId,
+                "1",
+                "viewCount"
+        );
         // 没抢到锁兜底，查询数据库
         PostDO postDO = postMapper.selectById(postId);
 
         if(postDO == null) {
             throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(),null,PostErrorCode.POST_NOT_FOUND);
         }
+
         // 兜底同样补上未刷库增量，与获锁路径行为保持一致
         return buildSummaryVO(postDO);
 

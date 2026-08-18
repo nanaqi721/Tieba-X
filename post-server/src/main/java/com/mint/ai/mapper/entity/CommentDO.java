@@ -35,6 +35,10 @@ public class CommentDO {
 
     private Integer floor;
 
+    private String rootId;
+
+    private Integer replyCount;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

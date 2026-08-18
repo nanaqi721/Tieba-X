@@ -12,6 +12,8 @@ import java.util.Map;
 public interface BarService {
     Long createBar(CreateBarRequest request);
 
+    void deleteBar(String barId);
+
     BarBaseVO queryBar(String barId);
 
     /**

@@ -13,7 +13,6 @@ import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.redisKey.RedisKeyConstant;
 import com.mint.ai.user.api.vo.UserBaseVO;
 import com.mint.ai.post.api.dto.CreateCommentRequest;
-import com.mint.ai.post.api.vo.CommentFloorVO;
 import com.mint.ai.post.api.vo.CreateCommentVO;
 import com.mint.ai.post.api.vo.FloorPageResponseVO;
 import com.mint.ai.post.api.vo.FloorVO;
@@ -34,11 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -75,6 +70,9 @@ public class CommentServiceImpl implements CommentService {
     public CreateCommentVO createComment(String postId, CreateCommentRequest request) {
 
         String userId = UserContext.getUserId();
+
+
+
         if(StrUtil.isNotBlank(request.getParentId()) && CollUtil.isNotEmpty(request.getImages())){
             throw new ClientException("回复楼中楼评论不能使用图片");
         }
@@ -119,9 +117,22 @@ public class CommentServiceImpl implements CommentService {
             return CreateCommentVO.builder().id(commentDO.getId()).floor(lastFloor).commentCount(commentCount).build();
         }
 
+        // 父评论有没有删除 父评论是不是别的帖子的 父评论是否删除了
+        CommentDO parent = commentMapper.selectById(request.getParentId());
+        if(parent == null || !postId.equals(parent.getPostId()) || parent.getDeleted() == 1) {
+            throw new ClientException("父评论不存在");
+        }
+        String rootId = parent.getParentId() == null
+                ? parent.getId()
+                : parent.getRootId();
         // 楼中楼回复：不占楼层，只更新最后回复时间
         commentDO.setParentId(request.getParentId());
+        commentDO.setRootId(rootId);
         commentMapper.insert(commentDO);
+        // 按顶层楼维护回复总数，避免回复评论时顶层楼数量不准确
+        if (commentMapper.incrementRootReplyCount(postId, rootId) != 1) {
+            throw new ClientException("顶层评论不存在");
+        }
         postMapper.update(null, Wrappers.lambdaUpdate(PostDO.class)
                 .eq(PostDO::getId, postId)
                 .set(PostDO::getLastReplyTime, LocalDateTime.now()));
@@ -146,120 +157,230 @@ public class CommentServiceImpl implements CommentService {
         if (!isAuthor && !isPostOwner) {
             throw new ClientException(CommentErrorCode.COMMENT_NO_PERMISSION.getMessage(), null, CommentErrorCode.COMMENT_NO_PERMISSION);
         }
-        // 级联收集评论及其楼中楼
-        List<String> deleteIds = new ArrayList<>();
-        collectCommentTree(commentId, deleteIds);
-        commentMapper.deleteBatchIds(deleteIds);
-        // 评论数按实际删除条数回减（楼中楼创建时也计数）；帖子已删时拿不到 barId，退化为仅更新缓冲
-        decrCommentCount(commentDO.getPostId(), postDO == null ? null : postDO.getBarId(), deleteIds.size());
+        // 如果是顶楼，直接删除全部
+        if(commentDO.getParentId() == null){
+            int delete = commentMapper.delete(
+                    Wrappers.lambdaUpdate(CommentDO.class)
+                            .eq(CommentDO::getRootId, commentDO.getId()) // 所有子评论
+                            .or()
+                            .eq(CommentDO::getId, commentDO.getId()) // 顶层评论
+            );
+            decrCommentCount(commentDO.getPostId(),
+                    postDO == null ? null : postDO.getBarId(), delete);
+            return ;
+        }
+        // 如果只是顶层评论的其中一条，删除自己
+        int delete = commentMapper.deleteById(commentId);
+        if (delete == 1) {
+            commentMapper.decrementRootReplyCount(commentDO.getPostId(), commentDO.getRootId());
+            decrCommentCount(commentDO.getPostId(),
+                    postDO == null ? null : postDO.getBarId(), 1);
+        }
     }
 
     @Override
     public FloorPageResponseVO listFloors(String postId, Integer pageNum, Integer pageSize) {
+        PostDO postDO = postMapper.selectById(postId);
+        if(postDO == null){
+            throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(),null,PostErrorCode.POST_NOT_FOUND);
+        }
         int page = (pageNum == null || pageNum < 1) ? 1 : pageNum;
         int size = pageSize == null ? 10 : pageSize;
         size = Math.min(Math.max(size, 1), 50);
         long offset = (long) (page - 1) * size;
 
-        // 顶层楼层总数
-        Long total = commentMapper.selectCount(Wrappers.lambdaQuery(CommentDO.class)
-                .eq(CommentDO::getPostId, postId)
-                .isNull(CommentDO::getParentId));
-        // 本页顶层楼层（项目未配置分页拦截器，手动 LIMIT，与 getFeed 一致）
-        List<CommentDO> topFloors = commentMapper.selectList(Wrappers.lambdaQuery(CommentDO.class)
-                .eq(CommentDO::getPostId, postId)
-                .isNull(CommentDO::getParentId)
-                .orderByAsc(CommentDO::getFloor)
-                .last("LIMIT " + offset + ", " + size));
-        List<CommentFloorVO> floors = BeanUtil.copyToList(topFloors, CommentFloorVO.class);
+        Long total = commentMapper.countTopFloors(postId);
+        List<FloorVO> commentFloorList = commentMapper.selectFloorsWithReplies(
+                postId, offset, size, 3);
+        if (commentFloorList == null) {
+            commentFloorList = new ArrayList<>();
+        }
 
-        // 楼中楼：按 parentId 分组挂到对应顶层楼层
-        if (CollUtil.isNotEmpty(floors)) {
-            List<String> topIds = floors.stream().map(CommentFloorVO::getId).toList();
-            List<CommentDO> children = commentMapper.selectList(Wrappers.lambdaQuery(CommentDO.class)
-                    .eq(CommentDO::getPostId, postId)
-                    .in(CommentDO::getParentId, topIds)
-                    .orderByAsc(CommentDO::getCreateTime));
-            Map<String, List<CommentFloorVO>> childrenMap = children.stream()
-                    .map(c -> BeanUtil.toBean(c, CommentFloorVO.class))
-                    .collect(Collectors.groupingBy(CommentFloorVO::getParentId));
-            for (CommentFloorVO floor : floors) {
-                floor.setChildren(childrenMap.getOrDefault(floor.getId(), List.of()));
+        List<String> floorIds = commentFloorList.stream()
+                .map(FloorVO::getId)
+                .toList();
+        List<AttachmentDO> attachments = floorIds.isEmpty()
+                ? List.of()
+                : attachmentMapper.selectList(
+                        Wrappers.lambdaQuery(AttachmentDO.class)
+                                .eq(AttachmentDO::getBizType, 2)
+                                .in(AttachmentDO::getBizId, floorIds)
+                                .orderByAsc(AttachmentDO::getSortOrder)
+                );
+
+        Map<String, List<String>> imageMap = attachments.stream()
+                .collect(Collectors.groupingBy(
+                        AttachmentDO::getBizId,
+                        Collectors.mapping(
+                                AttachmentDO::getUrl,
+                                Collectors.toList()
+                        )
+                ));
+        for (FloorVO floor : commentFloorList) {
+            floor.setImages(
+                    imageMap.getOrDefault(floor.getId(), List.of())
+            );
+        }
+
+        Set<String> userIds = new HashSet<>();
+        for (FloorVO floor : commentFloorList) {
+            collectFloorUserIds(floor, userIds);
+            if (floor.getChildren() == null) {
+                floor.setChildren(new ArrayList<>());
             }
         }
 
-        long totalCount = total == null ? 0 : total;
+        Map<String, UserBaseVO> userData = Map.of();
+        if (!userIds.isEmpty()) {
+            Result<Map<String, UserBaseVO>> userClientResult =
+                    userClient.batchGetUsersByIds(new ArrayList<>(userIds));
+            if (Result.SUCCESS_CODE.equals(userClientResult.getCode())
+                    && userClientResult.getData() != null) {
+                userData = userClientResult.getData();
+            }
+        }
+        fillFloorUsers(commentFloorList, userData);
+
+        long totalCount = total == null ? 0L : total;
         long totalPages = (totalCount + size - 1) / size;
-
-        // 聚合楼层作者昵称/头像（user-server 批量查询）
-        List<FloorVO> records = new ArrayList<>(floors.size());
-        if (CollUtil.isNotEmpty(floors)) {
-            Set<String> userIds = new HashSet<>();
-            collectFloorUserIds(floors, userIds);
-            Map<String, UserBaseVO> userMap = Map.of();
-            if (!userIds.isEmpty()) {
-                Result<Map<String, UserBaseVO>> userResult = userClient.batchGetUsersByIds(new ArrayList<>(userIds));
-                if (Result.SUCCESS_CODE.equals(userResult.getCode()) && userResult.getData() != null) {
-                    userMap = userResult.getData();
-                }
-            }
-            for (CommentFloorVO floor : floors) {
-                records.add(buildFloorVO(floor, userMap));
-            }
-        }
-
-        FloorPageResponseVO response = new FloorPageResponseVO();
-        response.setRecords(records);
-        response.setTotal(totalCount);
-        response.setTotalPages(totalPages);
-        response.setPageNum((long) page);
-        response.setPageSize((long) size);
-        return response;
+        return FloorPageResponseVO.builder()
+                .records(commentFloorList)
+                .pageSize((long) size)
+                .pageNum((long) page)
+                .total(totalCount)
+                .totalPages(totalPages)
+                .build();
     }
 
-    /**
-     * 递归收集楼层树中所有作者 userId
-     */
-    private void collectFloorUserIds(List<CommentFloorVO> floors, Set<String> userIds) {
-        for (CommentFloorVO floor : floors) {
-            if (StrUtil.isNotBlank(floor.getUserId())) {
-                userIds.add(floor.getUserId());
-            }
-            if (CollUtil.isNotEmpty(floor.getChildren())) {
-                collectFloorUserIds(floor.getChildren(), userIds);
-            }
+    private void collectFloorUserIds(FloorVO floor, Set<String> userIds) {
+        if (StrUtil.isNotBlank(floor.getUserId())) {
+            userIds.add(floor.getUserId());
         }
-    }
-
-    /**
-     * CommentFloorVO → FloorVO，填楼层作者昵称并递归挂接楼中楼
-     */
-    private FloorVO buildFloorVO(CommentFloorVO floor, Map<String, UserBaseVO> userMap) {
-        FloorVO vo = BeanUtil.copyProperties(floor, FloorVO.class, "children");
-        UserBaseVO user = userMap.get(floor.getUserId());
-        vo.setNickname(user == null ? "未知用户" : user.getNickname());
-        vo.setAvatarUrl(user == null ? null : user.getAvatarUrl());
         if (CollUtil.isNotEmpty(floor.getChildren())) {
-            List<FloorVO> children = new ArrayList<>(floor.getChildren().size());
-            for (CommentFloorVO child : floor.getChildren()) {
-                children.add(buildFloorVO(child, userMap));
+            for (FloorVO child : floor.getChildren()) {
+                collectFloorUserIds(child, userIds);
             }
-            vo.setChildren(children);
         }
-        return vo;
     }
 
-    /**
-     * 递归收集评论及其子树 id（含自身）
-     */
-    private void collectCommentTree(String parentId, List<String> deleteIds) {
-        deleteIds.add(parentId);
-        List<CommentDO> children = commentMapper.selectList(Wrappers.lambdaQuery(CommentDO.class)
-                .eq(CommentDO::getParentId, parentId));
-        for (CommentDO child : children) {
-            collectCommentTree(child.getId(), deleteIds);
+    private void fillFloorUsers(List<FloorVO> floors,
+                                Map<String, UserBaseVO> userData) {
+        for (FloorVO floor : floors) {
+            UserBaseVO user = userData.get(floor.getUserId());
+            floor.setNickname(user == null ? "未知用户" : user.getNickname());
+            floor.setAvatarUrl(user == null ? null : user.getAvatarUrl());
+            if (CollUtil.isNotEmpty(floor.getChildren())) {
+                fillFloorUsers(floor.getChildren(), userData);
+            }
         }
     }
+
+    @Override
+    public FloorPageResponseVO listReplies(String postId, String rootId,
+                                            Integer pageNum, Integer pageSize) {
+        CommentDO root = commentMapper.selectById(rootId);
+        if (root == null
+                || !postId.equals(root.getPostId())
+                || root.getParentId() != null) {
+            throw new ClientException("楼层不存在");
+        }
+        int page = (pageNum == null || pageNum < 1) ? 1 : pageNum;
+        int size = pageSize == null ? 20 : Math.min(Math.max(pageSize, 1), 50);
+        long offset = (long) (page - 1) * size;
+
+        Long total = commentMapper.selectCount(
+                Wrappers.lambdaQuery(CommentDO.class)
+                        .eq(CommentDO::getPostId, postId)
+                        .eq(CommentDO::getRootId, rootId)
+                        .isNotNull(CommentDO::getParentId)
+        );
+        List<CommentDO> replies = commentMapper.selectList(
+                Wrappers.lambdaQuery(CommentDO.class)
+                        .eq(CommentDO::getPostId, postId)
+                        .eq(CommentDO::getRootId, rootId)
+                        .isNotNull(CommentDO::getParentId)
+                        .orderByAsc(CommentDO::getCreateTime)
+                        .orderByAsc(CommentDO::getId)
+                        .last("LIMIT " + offset + ", " + size)
+        );
+
+        List<FloorVO> records = BeanUtil.copyToList(replies, FloorVO.class);
+        Set<String> userIds = new HashSet<>();
+        for (FloorVO reply : records) {
+            if (StrUtil.isNotBlank(reply.getUserId())) {
+                userIds.add(reply.getUserId());
+            }
+            reply.setChildren(new ArrayList<>());
+        }
+        Map<String, UserBaseVO> userData = Map.of();
+        if (!userIds.isEmpty()) {
+            Result<Map<String, UserBaseVO>> userResult =
+                    userClient.batchGetUsersByIds(new ArrayList<>(userIds));
+            if (Result.SUCCESS_CODE.equals(userResult.getCode())
+                    && userResult.getData() != null) {
+                userData = userResult.getData();
+            }
+        }
+        fillFloorUsers(records, userData);
+        long totalCount = total == null ? 0L : total;
+        return FloorPageResponseVO.builder()
+                .records(records)
+                .total(totalCount)
+                .totalPages((totalCount + size - 1) / size)
+                .pageNum((long) page)
+                .pageSize((long) size)
+                .build();
+    }
+
+    @Override
+    public List<FloorVO> listFloorThread(String postId, String floorId) {
+        List<CommentDO> thread = commentMapper.selectThreadByFloorId(postId, floorId);
+        if (CollUtil.isEmpty(thread)) {
+            throw new ClientException("楼层不存在");
+        }
+
+        List<FloorVO> records = BeanUtil.copyToList(thread, FloorVO.class);
+        Set<String> userIds = records.stream()
+                .map(FloorVO::getUserId)
+                .filter(StrUtil::isNotBlank)
+                .collect(Collectors.toSet());
+
+        Map<String, UserBaseVO> userData = Map.of();
+        if (!userIds.isEmpty()) {
+            Result<Map<String, UserBaseVO>> userResult =
+                    userClient.batchGetUsersByIds(new ArrayList<>(userIds));
+            if (Result.SUCCESS_CODE.equals(userResult.getCode())
+                    && userResult.getData() != null) {
+                userData = userResult.getData();
+            }
+        }
+
+        List<String> commentIds = records.stream().map(FloorVO::getId).toList();
+        List<AttachmentDO> attachments = attachmentMapper.selectList(
+                Wrappers.lambdaQuery(AttachmentDO.class)
+                        .eq(AttachmentDO::getBizType, 2)
+                        .in(AttachmentDO::getBizId, commentIds)
+                        .orderByAsc(AttachmentDO::getSortOrder)
+        );
+        Map<String, List<String>> imageMap = attachments.stream()
+                .collect(Collectors.groupingBy(
+                        AttachmentDO::getBizId,
+                        Collectors.mapping(AttachmentDO::getUrl, Collectors.toList())
+                ));
+
+        int replyCount = Math.max(records.size() - 1, 0);
+        for (FloorVO floor : records) {
+            floor.setChildren(new ArrayList<>());
+            floor.setImages(imageMap.getOrDefault(floor.getId(), List.of()));
+            if (floor.getParentId() == null) {
+                floor.setReplyCount(replyCount);
+            }
+        }
+        fillFloorUsers(records, userData);
+        return records;
+    }
+
+
 
     /**
      * 评论计数增量写 Redis（失败不滚回评论），返回缓冲增量值（供计算最新评论数）

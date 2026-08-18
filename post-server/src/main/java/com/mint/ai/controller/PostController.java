@@ -39,13 +39,13 @@ public class PostController {
         return Results.success(post);
     }
 
-    @DeleteMapping("/v1/{bardId}/delete")
+    @DeleteMapping("/v1/{barId}/delete")
     public Result<Void> deletePostById(@PathVariable(value = "barId") String barId,@RequestParam(value = "postId") String postId){
         postService.deletePostById(barId,postId);
         return Results.success();
     }
 
-    @PutMapping("/v1/{bardId}/delete")
+    @PutMapping("/v1/{barId}/delete")
     public Result<Void> updatePostById(@PathVariable(value = "barId") String barId, @RequestBody UpdatePostRequest request){
         postService.updatePostById(barId,request);
         return Results.success();
@@ -67,6 +67,20 @@ public class PostController {
                                                  @RequestParam(value = "pageNum", required = false) Integer pageNum,
                                                  @RequestParam(value = "pageSize", required = false) Integer pageSize){
         return Results.success(commentService.listFloors(postId, pageNum, pageSize));
+    }
+
+    @GetMapping("/v1/floors/{rootId}/replies")
+    public Result<FloorPageResponseVO> getReplies(@PathVariable("rootId") String rootId,
+                                                   @RequestParam("postId") String postId,
+                                                   @RequestParam(value = "pageNum", required = false) Integer pageNum,
+                                                   @RequestParam(value = "pageSize", required = false) Integer pageSize) {
+        return Results.success(commentService.listReplies(postId, rootId, pageNum, pageSize));
+    }
+
+    @GetMapping("/v1/floors/{floorId}/thread")
+    public Result<List<FloorVO>> getFloorThread(@PathVariable("floorId") String floorId,
+                                                 @RequestParam("postId") String postId) {
+        return Results.success(commentService.listFloorThread(postId, floorId));
     }
 
     @PostMapping("/v1/{postId}/like")
