@@ -3,7 +3,7 @@ package com.mint.ai.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.mint.ai.job.CommentCountFlushJob;
 import com.mint.ai.mapper.entity.CommentDO;
-import com.mint.ai.post.api.vo.FloorVO;
+import com.mint.ai.common.vo.FloorVO;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -34,11 +34,5 @@ public interface CommentMapper extends BaseMapper<CommentDO> {
      * 查询帖子顶层楼总数。
      */
     Long countTopFloors(@Param("postId") String postId);
-
-    /**
-     * 传入主楼或任意子回复 id，查询该 rootId 下的完整评论线程。
-     */
-    List<CommentDO> selectThreadByFloorId(@Param("postId") String postId,
-                                           @Param("floorId") String floorId);
 
 }

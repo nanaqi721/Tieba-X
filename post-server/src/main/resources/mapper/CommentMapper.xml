@@ -6,7 +6,7 @@
 <mapper namespace="com.mint.ai.mapper.CommentMapper">
 
     <resultMap id="floorWithRepliesMap"
-               type="com.mint.ai.post.api.vo.FloorVO">
+               type="com.mint.ai.common.vo.FloorVO">
         <id property="id" column="floor_id"/>
         <result property="floor" column="floor_no"/>
         <result property="userId" column="floor_user_id"/>
@@ -18,7 +18,7 @@
         <result property="createTime" column="floor_create_time"/>
 
         <collection property="children"
-                    ofType="com.mint.ai.post.api.vo.FloorVO">
+                    ofType="com.mint.ai.common.vo.FloorVO">
             <id property="id" column="reply_id"/>
             <result property="floor" column="reply_floor"/>
             <result property="userId" column="reply_user_id"/>
@@ -95,30 +95,6 @@
         WHERE post_id = #{postId}
           AND parent_id IS NULL
           AND deleted = 0
-    </select>
-
-    <select id="selectThreadByFloorId" resultType="com.mint.ai.mapper.entity.CommentDO">
-        WITH target AS (
-            SELECT CASE
-                       WHEN parent_id IS NULL THEN id
-                       ELSE COALESCE(root_id, parent_id)
-                   END AS target_root_id
-            FROM comment
-            WHERE id = #{floorId}
-              AND post_id = #{postId}
-              AND deleted = 0
-        )
-        SELECT c.*
-        FROM comment c
-        INNER JOIN target t
-                ON c.id = t.target_root_id
-                OR c.root_id = t.target_root_id
-        WHERE c.post_id = #{postId}
-          AND c.deleted = 0
-        ORDER BY
-            CASE WHEN c.parent_id IS NULL THEN 0 ELSE 1 END,
-            c.create_time ASC,
-            c.id ASC
     </select>
 
     <update id="batchIncrementCommentCount">

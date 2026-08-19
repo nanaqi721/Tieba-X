@@ -72,12 +72,6 @@
 
         <dependency>
             <groupId>com.mint.ai</groupId>
-            <artifactId>post-api</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.mint.ai</groupId>
             <artifactId>bar-api</artifactId>
             <version>1.0.0</version>
         </dependency>

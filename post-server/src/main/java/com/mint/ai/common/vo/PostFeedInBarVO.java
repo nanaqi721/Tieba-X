@@ -1,7 +1,6 @@
 package com.mint.ai.common.vo;
 
 import com.mint.ai.common.cursor.BarPostFeedCursor;
-import com.mint.ai.post.api.vo.BarPostCardVO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

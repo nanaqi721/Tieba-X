@@ -21,4 +21,6 @@ public class PostFeedInBarRequest {
     private Integer pageSize;
 
     private BarPostFeedCursor cursor;
+
+    private String barId;
 }

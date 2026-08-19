@@ -25,6 +25,11 @@ spring:
           uri: lb://post-server
           predicates:
             - Path=/api/posts/**
+        # 评论 -> post-server
+        - id: comment-server
+          uri: lb://post-server
+          predicates:
+            - Path=/api/comments/**
         # 吧 -> bar-server
         - id: bar-server
           uri: lb://bar-server

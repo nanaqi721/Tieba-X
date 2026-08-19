@@ -8,14 +8,14 @@ public final class RedisKeyConstant {
     /**
      * 业务：帖子缓存：吧id：帖子id
      */
-    public static final String POST_CACHE_SUMMARY = "post_server:post_cache:%s:%s";
+    public static final String POST_CACHE_SUMMARY = "post_server:post_cache:%s";
 
     /**
      * 帖子摘要空缓存key
      */
-    public static final String POST_NULL_CACHE_SUMMARY = "post_server:post_null_cache:%s:%s";
+    public static final String POST_NULL_CACHE_SUMMARY = "post_server:post_null_cache:%s";
 
-    public static final String POST_SUMMARY_LOCK = "post_server:lock:post_summary:%s:%s";
+    public static final String POST_SUMMARY_LOCK = "post_server:lock:post_summary:%s";
 
     /**
      * 模块：业务：点赞 or 收藏 or 浏览量

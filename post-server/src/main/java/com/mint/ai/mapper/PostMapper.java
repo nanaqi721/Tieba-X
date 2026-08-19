@@ -5,8 +5,8 @@ import com.mint.ai.common.cursor.BarPostFeedCursor;
 import com.mint.ai.common.cursor.PostHomeFeedCursor;
 import com.mint.ai.job.PostCountFlushJob;
 import com.mint.ai.mapper.entity.PostDO;
-import com.mint.ai.post.api.vo.BarPostCardVO;
-import com.mint.ai.post.api.vo.PostHomePageVO;
+import com.mint.ai.common.vo.BarPostCardVO;
+import com.mint.ai.common.vo.PostHomePageVO;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;

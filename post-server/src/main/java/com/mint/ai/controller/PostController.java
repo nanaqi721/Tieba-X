@@ -4,9 +4,8 @@ import com.mint.ai.common.Result;
 import com.mint.ai.common.dto.PostFeedInBarRequest;
 import com.mint.ai.common.dto.UpdatePostRequest;
 import com.mint.ai.common.vo.PostFeedInBarVO;
-import com.mint.ai.post.api.dto.CreatePostRequest;
-import com.mint.ai.post.api.vo.*;
-import com.mint.ai.service.CommentService;
+import com.mint.ai.common.dto.CreatePostRequest;
+import com.mint.ai.common.vo.*;
 import com.mint.ai.service.PostFavoriteService;
 import com.mint.ai.service.PostLikeService;
 import com.mint.ai.service.PostService;
@@ -14,8 +13,6 @@ import com.mint.ai.utils.Results;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * 帖子控制层
@@ -31,79 +28,102 @@ public class PostController {
 
     private final PostFavoriteService postFavoriteService;
 
-    private final CommentService commentService;
-
-    @PostMapping("/v1/{barId}/create")
-    public Result<PostCreateVO> createPost(@PathVariable(value = "barId") String barId, @Valid @RequestBody CreatePostRequest request){
-        PostCreateVO post = postService.createPost(barId, request);
+    /**
+     * 创建帖子
+     */
+    @PostMapping("/v1/create")
+    public Result<PostCreateVO> createPost(@Valid @RequestBody CreatePostRequest request){
+        PostCreateVO post = postService.createPost(request);
         return Results.success(post);
     }
 
-    @DeleteMapping("/v1/{barId}/delete")
-    public Result<Void> deletePostById(@PathVariable(value = "barId") String barId,@RequestParam(value = "postId") String postId){
-        postService.deletePostById(barId,postId);
+    /**
+     * 删除帖子
+     */
+    @DeleteMapping("/v1/delete")
+    public Result<Void> deletePostById(@RequestParam(value = "postId") String postId){
+        postService.deletePostById(postId);
         return Results.success();
     }
 
-    @PutMapping("/v1/{barId}/delete")
-    public Result<Void> updatePostById(@PathVariable(value = "barId") String barId, @RequestBody UpdatePostRequest request){
-        postService.updatePostById(barId,request);
+    /**
+     * 更新帖子
+     * @param request 更新帖子请求体
+     * @return
+     */
+    @PutMapping("/v1/delete")
+    public Result<Void> updatePostById(@RequestBody UpdatePostRequest request){
+        postService.updatePostById(request);
         return Results.success();
     }
 
-    @PostMapping("/v1/{barId}/home")
-    public Result<PostFeedInBarVO> postFeedInBar(@PathVariable(value = "barId") String barId, @RequestBody PostFeedInBarRequest request){
-        return Results.success(postService.getPostFeedInBar(barId,request));
+    /**
+     * 在bar主页帖子流式查询
+     * @param request 流式查询请求体
+     * @return
+     */
+    @PostMapping("/v1/bars/home/posts")
+    public Result<PostFeedInBarVO> postFeedInBar(@RequestBody PostFeedInBarRequest request){
+        return Results.success(postService.getPostFeedInBar(request));
     }
 
-    @GetMapping("/v1/{barId}")
-    public Result<PostSummaryVO> getPostSummary(@PathVariable("barId") String barId,@RequestParam("postId") String request){
-        PostSummaryVO postSummaryVO =postService.getPostSummary(barId,request);
+    /**
+     * 获取帖子的详细信息
+     * @param request 帖子id
+     * @return
+     */
+    @GetMapping("/v1/query")
+    public Result<PostSummaryVO> getPostSummary(@RequestParam("postId") String request){
+        PostSummaryVO postSummaryVO =postService.getPostSummary(request);
         return Results.success(postSummaryVO);
     }
 
-    @GetMapping("/v1/floors")
-    public Result<FloorPageResponseVO> getFloors(@RequestParam("postId") String postId,
-                                                 @RequestParam(value = "pageNum", required = false) Integer pageNum,
-                                                 @RequestParam(value = "pageSize", required = false) Integer pageSize){
-        return Results.success(commentService.listFloors(postId, pageNum, pageSize));
-    }
-
-    @GetMapping("/v1/floors/{rootId}/replies")
-    public Result<FloorPageResponseVO> getReplies(@PathVariable("rootId") String rootId,
-                                                   @RequestParam("postId") String postId,
-                                                   @RequestParam(value = "pageNum", required = false) Integer pageNum,
-                                                   @RequestParam(value = "pageSize", required = false) Integer pageSize) {
-        return Results.success(commentService.listReplies(postId, rootId, pageNum, pageSize));
-    }
-
-    @GetMapping("/v1/floors/{floorId}/thread")
-    public Result<List<FloorVO>> getFloorThread(@PathVariable("floorId") String floorId,
-                                                 @RequestParam("postId") String postId) {
-        return Results.success(commentService.listFloorThread(postId, floorId));
-    }
-
+    /**
+     * 点赞帖子
+     * @param postId
+     * @return
+     */
     @PostMapping("/v1/{postId}/like")
     public Result<Long> postLike(@PathVariable("postId") String postId){
         return Results.success(postLikeService.postLike(postId));
     }
 
+    /**
+     * 取消点赞
+     * @param postId
+     * @return
+     */
     @DeleteMapping("/v1/{postId}/unlike")
     public Result<Long> postUnlike(@PathVariable("postId") String postId){
         return Results.success(postLikeService.postUnlike(postId));
     }
 
+    /**
+     * 是否点赞
+     * @param postId
+     * @return
+     */
     @GetMapping("/v1/{postId}/liked")
     public Result<Boolean> postLiked(@PathVariable("postId") String postId){
 
         return Results.success(postLikeService.postLiked(postId));
     }
 
+    /**
+     * 收藏帖子
+     * @param postId
+     * @return
+     */
     @PostMapping("/v1/{postId}/collect")
     public Result<Long> postCollect(@PathVariable("postId") String postId){
         return Results.success(postFavoriteService.postCollect(postId));
     }
 
+    /**
+     * 取消收藏
+     * @param postId
+     * @return
+     */
     @DeleteMapping("/v1/{postId}/uncollect")
     public Result<Long> postUncollect(@PathVariable("postId") String postId){
         return Results.success(postFavoriteService.postUncollect(postId));
@@ -117,10 +137,10 @@ public class PostController {
     /**
      * 主页帖子流：按热度游标查询，聚合吧信息
      */
-    @GetMapping("/v1/feed")
-    public Result<PostFeedItemVO> getFeed(@RequestParam(value = "cursor", required = false) String cursor,
+    @GetMapping("/v1/home/feed")
+    public Result<PostFeedItemVO> HomePostsFeed(@RequestParam(value = "cursor", required = false) String cursor,
                                           @RequestParam(value = "pageSize", required = false) Integer pageSize){
-        return Results.success(postService.getFeed(cursor, pageSize));
+        return Results.success(postService.homePostsFeed(cursor, pageSize));
     }
 
 

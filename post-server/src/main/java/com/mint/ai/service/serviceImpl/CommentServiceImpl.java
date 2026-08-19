@@ -12,10 +12,10 @@ import com.mint.ai.common.enums.PostErrorCode;
 import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.redisKey.RedisKeyConstant;
 import com.mint.ai.user.api.vo.UserBaseVO;
-import com.mint.ai.post.api.dto.CreateCommentRequest;
-import com.mint.ai.post.api.vo.CreateCommentVO;
-import com.mint.ai.post.api.vo.FloorPageResponseVO;
-import com.mint.ai.post.api.vo.FloorVO;
+import com.mint.ai.common.dto.CreateCommentRequest;
+import com.mint.ai.common.vo.CreateCommentVO;
+import com.mint.ai.common.vo.FloorPageResponseVO;
+import com.mint.ai.common.vo.FloorVO;
 import com.mint.ai.mapper.AttachmentMapper;
 import com.mint.ai.mapper.CommentMapper;
 import com.mint.ai.mapper.PostMapper;
@@ -179,7 +179,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public FloorPageResponseVO listFloors(String postId, Integer pageNum, Integer pageSize) {
+    public FloorPageResponseVO pageQueryComments(String postId, Integer pageNum, Integer pageSize) {
         PostDO postDO = postMapper.selectById(postId);
         if(postDO == null){
             throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(),null,PostErrorCode.POST_NOT_FOUND);
@@ -276,8 +276,8 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public FloorPageResponseVO listReplies(String postId, String rootId,
-                                            Integer pageNum, Integer pageSize) {
+    public FloorPageResponseVO pageQueryReplies(String postId, String rootId,
+                                                Integer pageNum, Integer pageSize) {
         CommentDO root = commentMapper.selectById(rootId);
         if (root == null
                 || !postId.equals(root.getPostId())
@@ -331,56 +331,6 @@ public class CommentServiceImpl implements CommentService {
                 .pageSize((long) size)
                 .build();
     }
-
-    @Override
-    public List<FloorVO> listFloorThread(String postId, String floorId) {
-        List<CommentDO> thread = commentMapper.selectThreadByFloorId(postId, floorId);
-        if (CollUtil.isEmpty(thread)) {
-            throw new ClientException("楼层不存在");
-        }
-
-        List<FloorVO> records = BeanUtil.copyToList(thread, FloorVO.class);
-        Set<String> userIds = records.stream()
-                .map(FloorVO::getUserId)
-                .filter(StrUtil::isNotBlank)
-                .collect(Collectors.toSet());
-
-        Map<String, UserBaseVO> userData = Map.of();
-        if (!userIds.isEmpty()) {
-            Result<Map<String, UserBaseVO>> userResult =
-                    userClient.batchGetUsersByIds(new ArrayList<>(userIds));
-            if (Result.SUCCESS_CODE.equals(userResult.getCode())
-                    && userResult.getData() != null) {
-                userData = userResult.getData();
-            }
-        }
-
-        List<String> commentIds = records.stream().map(FloorVO::getId).toList();
-        List<AttachmentDO> attachments = attachmentMapper.selectList(
-                Wrappers.lambdaQuery(AttachmentDO.class)
-                        .eq(AttachmentDO::getBizType, 2)
-                        .in(AttachmentDO::getBizId, commentIds)
-                        .orderByAsc(AttachmentDO::getSortOrder)
-        );
-        Map<String, List<String>> imageMap = attachments.stream()
-                .collect(Collectors.groupingBy(
-                        AttachmentDO::getBizId,
-                        Collectors.mapping(AttachmentDO::getUrl, Collectors.toList())
-                ));
-
-        int replyCount = Math.max(records.size() - 1, 0);
-        for (FloorVO floor : records) {
-            floor.setChildren(new ArrayList<>());
-            floor.setImages(imageMap.getOrDefault(floor.getId(), List.of()));
-            if (floor.getParentId() == null) {
-                floor.setReplyCount(replyCount);
-            }
-        }
-        fillFloorUsers(records, userData);
-        return records;
-    }
-
-
 
     /**
      * 评论计数增量写 Redis（失败不滚回评论），返回缓冲增量值（供计算最新评论数）

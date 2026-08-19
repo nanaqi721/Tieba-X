@@ -17,7 +17,7 @@
         </foreach>
     </update>
 
-    <select id="postHomePage" resultType="com.mint.ai.post.api.vo.PostHomePageVO">
+    <select id="postHomePage" resultType="com.mint.ai.common.vo.PostHomePageVO">
         SELECT title, content, cover_image, bar_id, id AS postId,
                (like_count * 5 + view_count * 2 + comment_count * 3) AS hotScore
         FROM post
@@ -34,7 +34,7 @@
         LIMIT #{pageSize}
     </select>
     
-    <select id="getPostFeedInBar" resultType="com.mint.ai.post.api.vo.BarPostCardVO">
+    <select id="getPostFeedInBar" resultType="com.mint.ai.common.vo.BarPostCardVO">
         SELECT title,content,view_count,like_count,comment_count,last_reply_time,create_time,user_id,id as postId,
         (like_count * 5 + view_count * 2 + comment_count * 3) AS hotScore
         FROM post

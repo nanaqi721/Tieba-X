@@ -63,11 +63,6 @@ export function getReplies(postId, rootId, pageNum, pageSize) {
   return get(`/posts/v1/floors/${rootId}/replies`, { postId, pageNum, pageSize })
 }
 
-/** 查询主楼及相同 rootId 下的全部回复，返回包含 parentId/rootId 的平铺列表。 */
-export function getFloorThread(postId, floorId) {
-  return get(`/posts/v1/floors/${floorId}/thread`, { postId })
-}
-
 export function createComment(postId, data) {
   return post(`/posts/v1/${postId}/comments`, data)
 }

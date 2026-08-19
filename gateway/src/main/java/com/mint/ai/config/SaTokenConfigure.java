@@ -33,16 +33,16 @@ public class SaTokenConfigure {
     }
 
     /**
-     * 匿名接口白名单：登录 / 注册 / 首页信息流展示
+     * 匿名接口白名单：登录 / 注册 / 帖子和评论的公开查询
      * 其余接口（发帖、评论、点赞、收藏、关注、上传等）全部要求登录
      */
     private static final String[] EXCLUDE_PATHS = {
             "/api/users/v1/login",
             "/api/users/v1/register",
-            "/api/posts/v1/feed",
-            "/api/posts/v1/detail",
-            "/api/posts/v1/floors",
-            "/api/posts/v1/floors/**",
+            "/api/posts/v1/home/feed",
+            "/api/posts/v1/query",
+            "/api/comments/v1/page",
+            "/api/comments/v1/replies/page",
     };
 
     @Bean

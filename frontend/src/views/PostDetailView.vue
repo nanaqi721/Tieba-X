@@ -98,7 +98,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createComment,
   deleteComment,
-  getFloorThread,
+  getReplies,
   getFloors,
   getPostSummary,
   likeComment,
@@ -193,7 +193,7 @@ async function submitComment(target = null) {
     replyVisible.value = false
     await loadFloors(1)
     if (repliesVisible.value && replyRootId.value) {
-      await loadFloorThread()
+      await loadReplies()
     }
   } finally {
     commentLoading.value = false
@@ -204,24 +204,24 @@ async function openReplies(item) {
   replyRootId.value = item.id
   replyRoot.value = { ...item, children: [] }
   repliesVisible.value = true
-  await loadFloorThread()
+  await loadReplies()
 }
 
-async function loadFloorThread() {
+async function loadReplies() {
   if (!replyRootId.value) return
   repliesLoading.value = true
   try {
-    const thread = await getFloorThread(postId, replyRootId.value)
-    const records = Array.isArray(thread) ? thread : []
-    const commentMap = new Map(records.map((item) => [item.id, item]))
-    replyRoot.value = records.find((item) => !item.parentId) || replyRoot.value
-    replies.value = records
-      .filter((item) => item.parentId)
-      .map((item) => ({
-        ...item,
-        replyToNickname: commentMap.get(item.parentId)?.nickname || '已删除评论',
-      }))
-    replyTotal.value = replies.value.length
+    const data = await getReplies(postId, replyRootId.value, 1, 50)
+    const records = data?.records || []
+    const commentMap = new Map([
+      [replyRoot.value.id, replyRoot.value],
+      ...records.map((item) => [item.id, item]),
+    ])
+    replies.value = records.map((item) => ({
+      ...item,
+      replyToNickname: commentMap.get(item.parentId)?.nickname || '已删除评论',
+    }))
+    replyTotal.value = data?.total || 0
   } finally {
     repliesLoading.value = false
   }
@@ -260,7 +260,7 @@ async function removeComment(item) {
     replyRoot.value = null
     replyRootId.value = ''
   } else if (repliesVisible.value) {
-    await loadFloorThread()
+    await loadReplies()
   }
 }
 </script>
