@@ -10,7 +10,7 @@ import com.mint.ai.common.coontext.UserContext;
 import com.mint.ai.common.enums.CommentErrorCode;
 import com.mint.ai.common.enums.PostErrorCode;
 import com.mint.ai.common.exception.ClientException;
-import com.mint.ai.common.redisKey.RedisKeyConstant;
+import com.mint.ai.common.redisKey.RedisConstantKey;
 import com.mint.ai.user.api.vo.UserBaseVO;
 import com.mint.ai.common.dto.CreateCommentRequest;
 import com.mint.ai.common.vo.CreateCommentVO;
@@ -22,6 +22,8 @@ import com.mint.ai.mapper.PostMapper;
 import com.mint.ai.mapper.entity.AttachmentDO;
 import com.mint.ai.mapper.entity.CommentDO;
 import com.mint.ai.mapper.entity.PostDO;
+import com.mint.ai.mq.enums.UserContentType;
+import com.mint.ai.mq.producer.UserContentChangedProducer;
 import com.mint.ai.service.CommentService;
 import com.mint.ai.user.api.clients.UserClient;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +56,8 @@ public class CommentServiceImpl implements CommentService {
     private final StringRedisTemplate stringRedisTemplate;
 
     private final UserClient userClient;
+
+    private final UserContentChangedProducer userContentChangedProducer;
 
     private static final String COUNT_INCR = "lua/like_incr.lua";
 
@@ -114,6 +118,8 @@ public class CommentServiceImpl implements CommentService {
              */
             Long buf = incrCommentCount(postId, postDO.getBarId());
             int commentCount = postDO.getCommentCount() + (buf == null ? 0 : buf.intValue());
+            userContentChangedProducer.send(
+                    userId, UserContentType.COMMENT, 1, "用户创建评论", commentDO.getId());
             return CreateCommentVO.builder().id(commentDO.getId()).floor(lastFloor).commentCount(commentCount).build();
         }
 
@@ -138,6 +144,8 @@ public class CommentServiceImpl implements CommentService {
                 .set(PostDO::getLastReplyTime, LocalDateTime.now()));
         Long buf = incrCommentCount(postId, postDO.getBarId());
         int commentCount = postDO.getCommentCount() + (buf == null ? 0 : buf.intValue());
+        userContentChangedProducer.send(
+                userId, UserContentType.COMMENT, 1, "用户创建评论", commentDO.getId());
         return CreateCommentVO.builder().id(commentDO.getId()).floor(0).commentCount(commentCount).build();
     }
 
@@ -167,6 +175,11 @@ public class CommentServiceImpl implements CommentService {
             );
             decrCommentCount(commentDO.getPostId(),
                     postDO == null ? null : postDO.getBarId(), delete);
+            if (delete > 0) {
+                userContentChangedProducer.send(
+                        commentDO.getUserId(), UserContentType.COMMENT, -1,
+                        "用户删除评论", commentDO.getId());
+            }
             return ;
         }
         // 如果只是顶层评论的其中一条，删除自己
@@ -175,6 +188,9 @@ public class CommentServiceImpl implements CommentService {
             commentMapper.decrementRootReplyCount(commentDO.getPostId(), commentDO.getRootId());
             decrCommentCount(commentDO.getPostId(),
                     postDO == null ? null : postDO.getBarId(), 1);
+            userContentChangedProducer.send(
+                    commentDO.getUserId(), UserContentType.COMMENT, -1,
+                    "用户删除评论", commentDO.getId());
         }
     }
 
@@ -339,8 +355,8 @@ public class CommentServiceImpl implements CommentService {
         try {
             // 计数缓冲 + 摘要缓存同步更新（lua 一步完成），与点赞/收藏同脚本
             return stringRedisTemplate.execute(COUNT_INCR_SCRIPT,
-                    List.of(String.format(RedisKeyConstant.POST_COUNT_INCR, "comment_count"),
-                            String.format(RedisKeyConstant.POST_CACHE_SUMMARY, barId, postId)),
+                    List.of(String.format(RedisConstantKey.POST_COUNT_INCR, "comment_count"),
+                            String.format(RedisConstantKey.POST_CACHE_SUMMARY, barId, postId)),
                     postId, "1", "commentCount");
         } catch (Exception e) {
             log.warn("评论计数增量写 Redis 失败: postId={}", postId, e);
@@ -356,12 +372,12 @@ public class CommentServiceImpl implements CommentService {
             // 帖子已删时 barId 为 null，拿不到摘要缓存 key，退化为仅更新缓冲
             if (StrUtil.isBlank(barId)) {
                 stringRedisTemplate.opsForHash()
-                        .increment(String.format(RedisKeyConstant.POST_COUNT_INCR, "comment_count"), postId, -delta);
+                        .increment(String.format(RedisConstantKey.POST_COUNT_INCR, "comment_count"), postId, -delta);
                 return;
             }
             stringRedisTemplate.execute(COUNT_INCR_SCRIPT,
-                    List.of(String.format(RedisKeyConstant.POST_COUNT_INCR, "comment_count"),
-                            String.format(RedisKeyConstant.POST_CACHE_SUMMARY, barId, postId)),
+                    List.of(String.format(RedisConstantKey.POST_COUNT_INCR, "comment_count"),
+                            String.format(RedisConstantKey.POST_CACHE_SUMMARY, barId, postId)),
                     postId, String.valueOf(-delta), "commentCount");
         } catch (Exception e) {
             log.warn("评论计数回减写 Redis 失败: postId={}, delta={}", postId, delta, e);

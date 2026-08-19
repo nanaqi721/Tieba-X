@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mint.ai.common.coontext.UserContext;
 import com.mint.ai.common.enums.PostErrorCode;
 import com.mint.ai.common.exception.ClientException;
-import com.mint.ai.common.redisKey.RedisKeyConstant;
+import com.mint.ai.common.redisKey.RedisConstantKey;
 import com.mint.ai.mapper.PostFavoriteMapper;
 import com.mint.ai.mapper.PostMapper;
 import com.mint.ai.mapper.entity.PostDO;
@@ -64,8 +64,8 @@ public class PostFavoriteServiceImpl implements PostFavoriteService {
             return postDO.getFavoriteCount() + currentBuffer(postId);
         }
         // 更新计数缓冲 + 摘要缓存（lua 一步完成），返回最新收藏数 = DB列 + 缓冲
-        String countKey = String.format(RedisKeyConstant.POST_COUNT_INCR, "favorite_count");
-        String cacheKey = String.format(RedisKeyConstant.POST_CACHE_SUMMARY, postDO.getBarId(), postId);
+        String countKey = String.format(RedisConstantKey.POST_COUNT_INCR, "favorite_count");
+        String cacheKey = String.format(RedisConstantKey.POST_CACHE_SUMMARY, postDO.getBarId(), postId);
         Long buf = stringRedisTemplate.execute(COUNT_INCR_SCRIPT,
                 List.of(countKey, cacheKey),
                 postId, "1", "favoriteCount");
@@ -89,8 +89,8 @@ public class PostFavoriteServiceImpl implements PostFavoriteService {
             return postDO.getFavoriteCount() + currentBuffer(postId);
         }
         // 更新计数缓冲 + 摘要缓存（lua 一步完成，增量为 -1），返回最新收藏数 = DB列 + 缓冲
-        String countKey = String.format(RedisKeyConstant.POST_COUNT_INCR, "favorite_count");
-        String cacheKey = String.format(RedisKeyConstant.POST_CACHE_SUMMARY, postDO.getBarId(), postId);
+        String countKey = String.format(RedisConstantKey.POST_COUNT_INCR, "favorite_count");
+        String cacheKey = String.format(RedisConstantKey.POST_CACHE_SUMMARY, postDO.getBarId(), postId);
         Long buf = stringRedisTemplate.execute(COUNT_INCR_SCRIPT,
                 List.of(countKey, cacheKey),
                 postId, "-1", "favoriteCount");
@@ -115,7 +115,7 @@ public class PostFavoriteServiceImpl implements PostFavoriteService {
      */
     private long currentBuffer(String postId) {
         Object v = stringRedisTemplate.opsForHash().get(
-                String.format(RedisKeyConstant.POST_COUNT_INCR, "favorite_count"), postId);
+                String.format(RedisConstantKey.POST_COUNT_INCR, "favorite_count"), postId);
         return v == null ? 0 : Long.parseLong(v.toString());
     }
 }

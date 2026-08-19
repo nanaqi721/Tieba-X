@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--全限定类名-->
+<mapper namespace="com.mint.ai.mapper.UserMapper">
+
+    <select id="getUserInfo" resultType="">
+        SELECT
+        FROM user
+        LEFT JOIN ON
+    </select>
+
+</mapper>

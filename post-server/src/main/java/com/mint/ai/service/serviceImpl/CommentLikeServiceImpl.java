@@ -6,7 +6,7 @@ import com.mint.ai.common.coontext.UserContext;
 import com.mint.ai.common.enums.CommentErrorCode;
 import com.mint.ai.common.enums.LikeTargetType;
 import com.mint.ai.common.exception.ClientException;
-import com.mint.ai.common.redisKey.RedisKeyConstant;
+import com.mint.ai.common.redisKey.RedisConstantKey;
 import com.mint.ai.mapper.CommentMapper;
 import com.mint.ai.mapper.PostLikeMapper;
 import com.mint.ai.mapper.entity.CommentDO;
@@ -50,7 +50,7 @@ public class CommentLikeServiceImpl implements CommentLikeService {
             return commentDO.getLikeCount() + currentBuffer(commentId);
         }
         // 更新计数缓冲（评论无摘要缓存，无需 lua 同步），返回最新点赞数 = DB列 + 缓冲
-        Long buf = stringRedisTemplate.opsForHash().increment(String.format(RedisKeyConstant.COMMENT_COUNT_INCR,COMMENT_LIKE_COUNT), commentId, 1);
+        Long buf = stringRedisTemplate.opsForHash().increment(String.format(RedisConstantKey.COMMENT_COUNT_INCR,COMMENT_LIKE_COUNT), commentId, 1);
         return commentDO.getLikeCount() + (buf == null ? 0 : buf);
     }
 
@@ -69,7 +69,7 @@ public class CommentLikeServiceImpl implements CommentLikeService {
             return commentDO.getLikeCount() + currentBuffer(commentId);
         }
         // 更新计数缓冲，返回最新点赞数 = DB列 + 缓冲
-        Long buf = stringRedisTemplate.opsForHash().increment(String.format(RedisKeyConstant.COMMENT_COUNT_INCR,COMMENT_LIKE_COUNT), commentId, -1);
+        Long buf = stringRedisTemplate.opsForHash().increment(String.format(RedisConstantKey.COMMENT_COUNT_INCR,COMMENT_LIKE_COUNT), commentId, -1);
         return commentDO.getLikeCount() + (buf == null ? 0 : buf);
     }
 
@@ -89,7 +89,7 @@ public class CommentLikeServiceImpl implements CommentLikeService {
      * 当前计数缓冲（缓冲中未刷库的增量）
      */
     private long currentBuffer(String commentId) {
-        Object v = stringRedisTemplate.opsForHash().get(String.format(RedisKeyConstant.COMMENT_COUNT_INCR,COMMENT_LIKE_COUNT), commentId);
+        Object v = stringRedisTemplate.opsForHash().get(String.format(RedisConstantKey.COMMENT_COUNT_INCR,COMMENT_LIKE_COUNT), commentId);
         return v == null ? 0 : Long.parseLong(v.toString());
     }
 

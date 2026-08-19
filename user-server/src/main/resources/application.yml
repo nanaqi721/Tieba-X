@@ -27,6 +27,9 @@ spring:
       database: 2
       connect-timeout: 5s
 
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:192.168.88.130:9876}
+
 mybatis-plus:
   global-config:
     db-config:

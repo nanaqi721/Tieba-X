@@ -1,6 +1,6 @@
 package com.mint.ai.job;
 
-import com.mint.ai.common.redisKey.RedisKeyConstant;
+import com.mint.ai.common.redisKey.RedisConstantKey;
 import com.mint.ai.mapper.PostMapper;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.AllArgsConstructor;
@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Map;
@@ -34,7 +33,7 @@ public class PostCountFlushJob {
     @XxlJob("flushPostCount")
     public void flushPostCount() {
         for(String metric : METRICS) {
-            String key = String.format(RedisKeyConstant.POST_COUNT_INCR, metric);
+            String key = String.format(RedisConstantKey.POST_COUNT_INCR, metric);
             // 获取和删除要强一致就加lua脚本但是我们是浏览量统计少一点没关系
             Map<Object, Object> incr = stringRedisTemplate.opsForHash().entries(key);
             stringRedisTemplate.delete(key);

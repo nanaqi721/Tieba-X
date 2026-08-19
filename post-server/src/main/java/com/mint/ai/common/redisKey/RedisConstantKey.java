@@ -3,7 +3,7 @@ package com.mint.ai.common.redisKey;
 /**
  * redis常量key
  */
-public final class RedisKeyConstant {
+public final class RedisConstantKey {
 
     /**
      * 业务：帖子缓存：吧id：帖子id

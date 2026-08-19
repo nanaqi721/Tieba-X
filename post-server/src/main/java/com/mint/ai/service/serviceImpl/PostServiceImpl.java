@@ -18,7 +18,7 @@ import com.mint.ai.common.enums.BaseEnums;
 import com.mint.ai.common.enums.PostErrorCode;
 import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.exception.ServiceException;
-import com.mint.ai.common.redisKey.RedisKeyConstant;
+import com.mint.ai.common.redisKey.RedisConstantKey;
 import com.mint.ai.common.dto.UpdatePostRequest;
 import com.mint.ai.common.vo.PostFeedInBarVO;
 import com.mint.ai.common.vo.*;
@@ -26,6 +26,8 @@ import com.mint.ai.user.api.vo.UserBaseVO;
 import com.mint.ai.mapper.PostMapper;
 import com.mint.ai.common.dto.CreatePostRequest;
 import com.mint.ai.mapper.entity.PostDO;
+import com.mint.ai.mq.enums.UserContentType;
+import com.mint.ai.mq.producer.UserContentChangedProducer;
 import com.mint.ai.service.PostService;
 import com.mint.ai.user.api.clients.UserClient;
 import com.mint.ai.utils.MyMapUtils;
@@ -36,6 +38,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -63,6 +66,8 @@ public class PostServiceImpl implements PostService {
 
     private final UserClient userClient;
 
+    private final UserContentChangedProducer userContentChangedProducer;
+
     // lua脚本路径
     private static final String HSET_WITH_TTL = "lua/hset_with_ttl.lua";
 
@@ -84,6 +89,7 @@ public class PostServiceImpl implements PostService {
         BAR_POST_COUNT_INCR_SCRIPT.setResultType(Long.class);
     }
     @Override
+    @Transactional
     public PostCreateVO createPost(CreatePostRequest request) {
 
         // 登录已由 LoginInterceptor 兜底，此处直接取用户 id
@@ -110,16 +116,18 @@ public class PostServiceImpl implements PostService {
         });
         // 执行lua脚本
         stringRedisTemplate.execute(HSET_WITH_TTL_SCRIPT,
-                List.of(String.format(RedisKeyConstant.POST_CACHE_SUMMARY,request.getBarId(),post.getId())),
+                List.of(String.format(RedisConstantKey.POST_CACHE_SUMMARY,request.getBarId(),post.getId())),
                 args.toArray());
 
         // 清除历史空缓存，避免"帖子已创建但空缓存未过期"导致查询误判不存在
-        stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_NULL_CACHE_SUMMARY, request.getBarId(), post.getId()));
+        stringRedisTemplate.delete(String.format(RedisConstantKey.POST_NULL_CACHE_SUMMARY, request.getBarId(), post.getId()));
         // 帖子数增量入 buffer + 吧详情缓存同步，由 bar-server 定时任务刷入 bar.post_count
         stringRedisTemplate.execute(BAR_POST_COUNT_INCR_SCRIPT,
-                List.of(String.format(RedisKeyConstant.BAR_COUNT_INCR, "post_count"),
-                        String.format(RedisKeyConstant.BAR_DETAIL_CACHE, request.getBarId())),
+                List.of(String.format(RedisConstantKey.BAR_COUNT_INCR, "post_count"),
+                        String.format(RedisConstantKey.BAR_DETAIL_CACHE, request.getBarId())),
                 request.getBarId(), "1", "postCount");
+        userContentChangedProducer.send(
+                userId, UserContentType.POST, 1, "用户创建帖子", post.getId());
         return PostCreateVO.builder()
                 .id(post.getId())
                 .build();
@@ -127,6 +135,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Transactional
     public void deletePostById(String postId) {
         String userId = UserContext.getUserId();
         LambdaUpdateWrapper<PostDO> wrapper = Wrappers.lambdaUpdate(PostDO.class)
@@ -138,12 +147,14 @@ public class PostServiceImpl implements PostService {
             throw new ClientException(PostErrorCode.POST_DELETED.getMessage(),null,PostErrorCode.POST_DELETED);
         }
         // 删除缓存
-        stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_CACHE_SUMMARY,postDO.getId(),postId));
+        stringRedisTemplate.delete(String.format(RedisConstantKey.POST_CACHE_SUMMARY,postDO.getId(),postId));
         // 帖子数减量入 buffer + 吧详情缓存同步，由 bar-server 定时任务刷入 bar.post_count
         stringRedisTemplate.execute(BAR_POST_COUNT_INCR_SCRIPT,
-                List.of(String.format(RedisKeyConstant.BAR_COUNT_INCR, "post_count"),
-                        String.format(RedisKeyConstant.BAR_DETAIL_CACHE, postDO.getId())),
+                List.of(String.format(RedisConstantKey.BAR_COUNT_INCR, "post_count"),
+                        String.format(RedisConstantKey.BAR_DETAIL_CACHE, postDO.getId())),
                 postDO.getId(), "-1", "postCount");
+        userContentChangedProducer.send(
+                postDO.getUserId(), UserContentType.POST, -1, "用户删除帖子", postDO.getId());
     }
 
     @Override
@@ -168,7 +179,7 @@ public class PostServiceImpl implements PostService {
                     null, PostErrorCode.POST_UPDATE_ERROR);
         }
 
-        stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_CACHE_SUMMARY,post.getBarId(),request.getPostId()));
+        stringRedisTemplate.delete(String.format(RedisConstantKey.POST_CACHE_SUMMARY,post.getBarId(),request.getPostId()));
 
 
     }
@@ -186,14 +197,14 @@ public class PostServiceImpl implements PostService {
         }
          */
         // 1. 快路径：先查缓存，命中直接返回（不抢锁）
-        Map<Object, Object> postSummary = stringRedisTemplate.opsForHash().entries(String.format(RedisKeyConstant.POST_CACHE_SUMMARY,postId));
+        Map<Object, Object> postSummary = stringRedisTemplate.opsForHash().entries(String.format(RedisConstantKey.POST_CACHE_SUMMARY,postId));
         if (!postSummary.isEmpty()) {
             PostSummaryVO postSummaryVO = BeanUtil.toBean(MyMapUtils.mapToStingMap(postSummary), PostSummaryVO.class);
             stringRedisTemplate.execute(
                     BAR_POST_COUNT_INCR_SCRIPT,
                     List.of(
-                            String.format(RedisKeyConstant.POST_COUNT_INCR, "view_count"),
-                            String.format(RedisKeyConstant.POST_CACHE_SUMMARY,postSummaryVO.getBarId(), postId)
+                            String.format(RedisConstantKey.POST_COUNT_INCR, "view_count"),
+                            String.format(RedisConstantKey.POST_CACHE_SUMMARY,postSummaryVO.getBarId(), postId)
                     ),
                     postId,
                     "1",
@@ -202,23 +213,23 @@ public class PostServiceImpl implements PostService {
             return postSummaryVO;
         }
         // 缓存没数据查询空缓存
-        String isNUll = stringRedisTemplate.opsForValue().get(String.format(RedisKeyConstant.POST_NULL_CACHE_SUMMARY,postId));
+        String isNUll = stringRedisTemplate.opsForValue().get(String.format(RedisConstantKey.POST_NULL_CACHE_SUMMARY,postId));
         // 空缓存不为空，直接返回错误信息
         if(isNUll != null){
             throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(),null,PostErrorCode.POST_NOT_FOUND);
         }
 
         // 使用redission分布式锁构建缓存并使用双重判定锁构建
-        RLock lock = redissonClient.getLock(String.format(RedisKeyConstant.POST_SUMMARY_LOCK,postId));
+        RLock lock = redissonClient.getLock(String.format(RedisConstantKey.POST_SUMMARY_LOCK,postId));
         try {
             if(lock.tryLock(2,TimeUnit.SECONDS)){
-                Map<Object, Object> entries = stringRedisTemplate.opsForHash().entries(String.format(RedisKeyConstant.POST_CACHE_SUMMARY,postId));
+                Map<Object, Object> entries = stringRedisTemplate.opsForHash().entries(String.format(RedisConstantKey.POST_CACHE_SUMMARY,postId));
                 if(! entries.isEmpty()){
                     Map<String, String> map = MyMapUtils.mapToStingMap(entries);
                     PostSummaryVO summaryVO = BeanUtil.toBean(map, PostSummaryVO.class);
                     return summaryVO;
                 }
-                String checkNullCache = stringRedisTemplate.opsForValue().get(String.format(RedisKeyConstant.POST_NULL_CACHE_SUMMARY,postId));
+                String checkNullCache = stringRedisTemplate.opsForValue().get(String.format(RedisConstantKey.POST_NULL_CACHE_SUMMARY,postId));
                 // 空缓存不为空，直接返回错误信息
                 if(checkNullCache != null){
                     throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(),null,PostErrorCode.POST_NOT_FOUND);
@@ -227,7 +238,7 @@ public class PostServiceImpl implements PostService {
                 PostDO postDO = postMapper.selectById(postId);
                 // 如果数据库没有数据缓存空缓存抛异常
                 if(postDO == null) {
-                    stringRedisTemplate.opsForValue().set(String.format(RedisKeyConstant.POST_NULL_CACHE_SUMMARY,postId),
+                    stringRedisTemplate.opsForValue().set(String.format(RedisConstantKey.POST_NULL_CACHE_SUMMARY,postId),
                             "", 5, TimeUnit.MINUTES);
                     throw new ClientException(PostErrorCode.POST_NOT_FOUND.getMessage(),null,PostErrorCode.POST_NOT_FOUND);
                 }
@@ -248,15 +259,15 @@ public class PostServiceImpl implements PostService {
                 });
                 // 执行lua脚本
                 stringRedisTemplate.execute(HSET_WITH_TTL_SCRIPT,
-                        List.of(String.format(RedisKeyConstant.POST_CACHE_SUMMARY,summaryVO.getBarId(),postId)),
+                        List.of(String.format(RedisConstantKey.POST_CACHE_SUMMARY,summaryVO.getBarId(),postId)),
                         args.toArray());
                 // 删除空缓存，避免"帖子已存在但空缓存未过期"导致查询误判不存在
-                stringRedisTemplate.delete(String.format(RedisKeyConstant.POST_NULL_CACHE_SUMMARY,postId));
+                stringRedisTemplate.delete(String.format(RedisConstantKey.POST_NULL_CACHE_SUMMARY,postId));
                 stringRedisTemplate.execute(
                         BAR_POST_COUNT_INCR_SCRIPT,
                         List.of(
-                                String.format(RedisKeyConstant.POST_COUNT_INCR, "view_count"),
-                                String.format(RedisKeyConstant.POST_CACHE_SUMMARY, summaryVO.getBarId(), postId)
+                                String.format(RedisConstantKey.POST_COUNT_INCR, "view_count"),
+                                String.format(RedisConstantKey.POST_CACHE_SUMMARY, summaryVO.getBarId(), postId)
                         ),
                         postId,
                         "1",
@@ -267,7 +278,7 @@ public class PostServiceImpl implements PostService {
         } catch (InterruptedException e) {
             // 恢复当前线程打断状态
             Thread.currentThread().interrupt();
-            Log.error("获取锁{}时被打断",String.format(RedisKeyConstant.POST_SUMMARY_LOCK,postId));
+            Log.error("获取锁{}时被打断",String.format(RedisConstantKey.POST_SUMMARY_LOCK,postId));
             throw new ServiceException(BaseEnums.SYSTEM_ERROR.getMessage(),e,BaseEnums.SYSTEM_ERROR);
         } finally {
             // 如果锁是当前线程获取的才释放，防止误删锁
@@ -279,8 +290,8 @@ public class PostServiceImpl implements PostService {
         stringRedisTemplate.execute(
                 BAR_POST_COUNT_INCR_SCRIPT,
                 List.of(
-                        String.format(RedisKeyConstant.POST_COUNT_INCR, "view_count"),
-                        String.format(RedisKeyConstant.POST_CACHE_SUMMARY,postId)
+                        String.format(RedisConstantKey.POST_COUNT_INCR, "view_count"),
+                        String.format(RedisConstantKey.POST_CACHE_SUMMARY,postId)
                 ),
                 postId,
                 "1",
@@ -439,7 +450,7 @@ public class PostServiceImpl implements PostService {
      */
     private Integer addPendingCount(String postId, String metric, Integer base) {
         Object pending = stringRedisTemplate.opsForHash().get(
-                String.format(RedisKeyConstant.POST_COUNT_INCR, metric), postId);
+                String.format(RedisConstantKey.POST_COUNT_INCR, metric), postId);
         return pending == null ? base : base + Integer.parseInt(pending.toString());
     }
 

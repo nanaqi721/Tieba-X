@@ -43,6 +43,18 @@ CREATE TABLE `user` (
   KEY `idx_status` (`status`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户';
 
+-- RocketMQ 消费幂等记录。同一消费组内，一个 event_id 只允许成功处理一次。
+CREATE TABLE `mq_consume_record` (
+  `id`             BIGINT       NOT NULL                COMMENT '雪花ID',
+  `consumer_group` VARCHAR(100) NOT NULL                COMMENT '消费者组',
+  `event_id`       VARCHAR(64)  NOT NULL                COMMENT '业务事件ID（RocketMQ keys）',
+  `topic`          VARCHAR(100) NOT NULL                COMMENT '消息主题',
+  `consumed_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '消费时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_consumer_event` (`consumer_group`, `event_id`),
+  KEY `idx_consumed_at` (`consumed_at`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = 'MQ消费幂等记录';
+
 -- 吧（版块）
 CREATE TABLE `bar` (
   `id`             BIGINT       NOT NULL                COMMENT '雪花ID',

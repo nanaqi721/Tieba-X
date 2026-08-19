@@ -1,6 +1,6 @@
 package com.mint.ai.job;
 
-import com.mint.ai.common.redisKey.RedisKeyConstant;
+import com.mint.ai.common.redisKey.RedisConstantKey;
 import com.mint.ai.mapper.CommentMapper;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.AllArgsConstructor;
@@ -32,7 +32,7 @@ public class CommentCountFlushJob {
 
     @XxlJob("flushCommentLike")
     public void flushCommentLike() {
-        String key = String.format(RedisKeyConstant.COMMENT_COUNT_INCR, METRIC);
+        String key = String.format(RedisConstantKey.COMMENT_COUNT_INCR, METRIC);
         Map<Object, Object> entries = stringRedisTemplate.opsForHash().entries(key);
         stringRedisTemplate.delete(key);
         if (entries.isEmpty()) {

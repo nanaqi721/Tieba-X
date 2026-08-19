@@ -9,20 +9,31 @@ import cn.hutool.crypto.digest.BCrypt;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mint.ai.common.Result;
+import com.mint.ai.common.coontext.UserContext;
 import com.mint.ai.common.dto.CreateUserRequest;
 import com.mint.ai.common.dto.LoginRequest;
 import com.mint.ai.common.enums.UserErrorCode;
 import com.mint.ai.common.exception.ClientException;
+import com.mint.ai.common.redisKey.RedisConstantKey;
+import com.mint.ai.common.vo.UserVO;
 import com.mint.ai.user.api.vo.UserBaseVO;
 import com.mint.ai.mapper.UserMapper;
 import com.mint.ai.mapper.entity.UserDO;
 import com.mint.ai.service.UserService;
+import com.mint.ai.util.MyMapUtils;
+import com.mint.ai.utils.Results;
 import lombok.RequiredArgsConstructor;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,6 +42,10 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
+
+    private final StringRedisTemplate stringRedisTemplate;
+
+    private final RedissonClient redissonClient;
 
     @Override
     public String register(CreateUserRequest request, String deviceType) {
@@ -105,5 +120,71 @@ public class UserServiceImpl implements UserService {
         }
         List<UserDO> users = userMapper.selectBatchIds(ids);
         return users.stream().collect(Collectors.toMap(UserDO::getId, v -> BeanUtil.toBean(v, UserBaseVO.class)));
+    }
+
+    @Override
+    public UserVO getUserInfo() {
+
+        String userId = UserContext.getUserId();
+        Map<Object, Object> userCache = stringRedisTemplate.opsForHash().entries(String.format(RedisConstantKey.USER_CACHE, userId));
+
+        Map<String,String> newUserCache = MyMapUtils.mapToStingMap(userCache);
+
+        if(!userCache.isEmpty()){
+            return BeanUtil.mapToBean(newUserCache,UserVO.class,true);
+        }
+
+        String userNullCache = stringRedisTemplate.opsForValue().get(String.format(String.format(RedisConstantKey.USER_NULL_CACHE)));
+        if(StrUtil.isNotEmpty(userNullCache)){
+            throw new ClientException("用户不存在请查询有效用户");
+        }
+        // 尝试获取分布式锁
+        RLock lock = redissonClient.getLock(String.format(RedisConstantKey.USER_CACHE_LOCK));
+        try {
+            if(lock.tryLock(2, TimeUnit.MINUTES)){
+                // 检查是否有空缓存构建了
+                userNullCache = stringRedisTemplate.opsForValue().get(String.format(String.format(RedisConstantKey.USER_NULL_CACHE)));
+                if(StrUtil.isNotEmpty(userNullCache)){
+                    throw new ClientException("用户不存在请查询有效用户");
+                }
+
+                // 检查是否有缓存构建了
+                userCache = stringRedisTemplate.opsForHash().entries(String.format(RedisConstantKey.USER_CACHE, userId));
+                newUserCache = MyMapUtils.mapToStingMap(userCache);
+                if(!userCache.isEmpty()){
+                    return BeanUtil.mapToBean(newUserCache,UserVO.class,true);
+                }
+
+                //开始构建缓存
+
+                UserDO userDO = userMapper.selectById(userId);
+                if(userDO == null){
+                    stringRedisTemplate.opsForValue().set(String.format(String.format(RedisConstantKey.USER_NULL_CACHE))," ");
+                    throw new ClientException("用户不存在");
+                }
+
+                UserVO userVO = BeanUtil.toBean(userDO, UserVO.class);
+                Map<String, Object> stringObjectMap = BeanUtil.beanToMap(userVO);
+                Map<String, String> userCacheMap = new HashMap<>();
+                for(String key : stringObjectMap.keySet()){
+                    userCacheMap.put(key,String.valueOf(stringObjectMap.get(key)));
+                }
+                stringRedisTemplate.opsForHash().putAll(String.format(RedisConstantKey.USER_CACHE,userId),userCacheMap);
+                return userVO;
+
+            }
+        } catch (Exception e) {
+            throw new ClientException("查询用户失败请稍后重试");
+        } finally {
+            // 如果锁是当前线程获取的才释放，防止误删锁
+            if(lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
+        UserDO userDO = userMapper.selectById(userId);
+        if(userDO == null){
+            throw new ClientException("用户不存在");
+        }
+        return BeanUtil.toBean(userDO,UserVO.class);
     }
 }

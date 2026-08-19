@@ -1,6 +1,6 @@
 package com.mint.ai.mock.factory;
 
-import com.mint.ai.common.redisKey.RedisKeyConstant;
+import com.mint.ai.common.redisKey.RedisConstantKey;
 import com.mint.ai.mapper.PostMapper;
 import com.mint.ai.mapper.entity.PostDO;
 import jakarta.annotation.Resource;
@@ -46,6 +46,6 @@ public class PostMockFactory {
 
     private void incrementCount(String postId, String metric, long delta) {
         stringRedisTemplate.opsForHash()
-                .increment(String.format(RedisKeyConstant.POST_COUNT_INCR, metric), postId, delta);
+                .increment(String.format(RedisConstantKey.POST_COUNT_INCR, metric), postId, delta);
     }
 }

@@ -3,6 +3,7 @@ package com.mint.ai.controller;
 import com.mint.ai.common.Result;
 import com.mint.ai.common.dto.CreateUserRequest;
 import com.mint.ai.common.dto.LoginRequest;
+import com.mint.ai.common.vo.UserVO;
 import com.mint.ai.service.UserService;
 import com.mint.ai.user.api.vo.UserBaseVO;
 import com.mint.ai.utils.Results;
@@ -61,6 +62,11 @@ public class UserController {
     @GetMapping("/v1/batch")
     public Result<Map<String, UserBaseVO>> batchGetUsersByIds(@RequestParam("ids") List<String> ids){
         return Results.success(userService.batchGetUsersByIds(ids));
+    }
+
+    @GetMapping("/v1/me")
+    public Result<UserVO> getUserInfo(){
+        return Results.success(userService.getUserInfo());
     }
 
 }
