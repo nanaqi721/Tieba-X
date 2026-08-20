@@ -33,3 +33,9 @@ Backend tests use JUnit 5, Spring Boot Test, MockMvc, and AssertJ. Name test cla
 ## Commit & Pull Request Guidelines
 
 Use Conventional Commits: `feat(post): add cursor pagination`, `fix(auth): reject expired token`, or `docs: update setup`. Keep the scope lowercase and the description imperative. Pull requests should identify affected modules, summarize behavior and configuration changes, link related issues, report test commands/results, and include screenshots for UI changes. Never commit secrets, logs, IDE metadata, `target/`, or `frontend/dist/`.
+
+## Agent skills
+
+- Use [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md) to locate durable specifications and implementation tickets.
+- Use [docs/agents/triage-labels.md](docs/agents/triage-labels.md) for issue-state labels.
+- Use [docs/agents/domain.md](docs/agents/domain.md) to locate the domain glossary and architectural decisions.

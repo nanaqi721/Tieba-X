@@ -2,6 +2,7 @@ package com.mint.ai.service;
 
 import com.mint.ai.bar.api.dto.CreateBarRequest;
 import com.mint.ai.bar.api.vo.BarBaseVO;
+import com.mint.ai.common.vo.BarSearchResultVO;
 
 import java.util.List;
 import java.util.Map;
@@ -35,4 +36,6 @@ public interface BarService {
      * 当前用户是否关注了该吧
      */
     Boolean isFollowed(String barId);
+
+    BarSearchResultVO searchBars(String keyword, String cursor, Integer pageSize);
 }

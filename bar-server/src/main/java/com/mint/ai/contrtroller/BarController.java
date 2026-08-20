@@ -3,6 +3,8 @@ package com.mint.ai.contrtroller;
 import com.mint.ai.common.Result;
 import com.mint.ai.bar.api.dto.CreateBarRequest;
 import com.mint.ai.bar.api.vo.BarBaseVO;
+import com.mint.ai.common.excption.ClientException;
+import com.mint.ai.common.vo.BarSearchResultVO;
 import com.mint.ai.service.BarService;
 import com.mint.ai.utils.Results;
 import jakarta.validation.Valid;
@@ -76,5 +78,21 @@ public class BarController {
     @GetMapping("/v1/batch")
     public Result<Map<String, BarBaseVO>> queryBarList(@RequestParam("ids") List<String> ids) {
         return Results.success(barService.queryBarList(ids));
+    }
+
+    @GetMapping("/v1/search")
+    public Result<BarSearchResultVO> searchBars(
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "cursor", required = false) String cursor,
+            @RequestParam(value = "pageSize", required = false) String pageSize) {
+        Integer parsedPageSize = null;
+        if (pageSize != null) {
+            try {
+                parsedPageSize = Integer.valueOf(pageSize);
+            } catch (NumberFormatException e) {
+                throw new ClientException("pageSize格式错误", e);
+            }
+        }
+        return Results.success(barService.searchBars(keyword, cursor, parsedPageSize));
     }
 }

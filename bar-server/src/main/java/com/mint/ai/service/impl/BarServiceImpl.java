@@ -2,6 +2,8 @@ package com.mint.ai.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.crypto.digest.DigestUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.esotericsoftware.minlog.Log;
@@ -12,7 +14,10 @@ import com.mint.ai.common.enums.BaseEnums;
 import com.mint.ai.common.enums.FollowTargetType;
 import com.mint.ai.common.excption.ClientException;
 import com.mint.ai.common.excption.ServiceException;
+import com.mint.ai.common.cursor.BarSearchCursor;
 import com.mint.ai.common.redisKey.BarConstantRedisKey;
+import com.mint.ai.common.vo.BarSearchItemVO;
+import com.mint.ai.common.vo.BarSearchResultVO;
 import com.mint.ai.bar.api.vo.BarBaseVO;
 import com.mint.ai.mapper.BarMapper;
 import com.mint.ai.mapper.FollowMapper;
@@ -30,9 +35,11 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -42,6 +49,8 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 public class BarServiceImpl implements BarService {
+
+    private final ObjectMapper objectMapper;
 
     private final BarMapper barMapper;
 
@@ -312,5 +321,80 @@ public class BarServiceImpl implements BarService {
         Object v = stringRedisTemplate.opsForHash().get(
                 String.format(BarConstantRedisKey.BAR_COUNT_INCR, "follower_count"), barId);
         return v == null ? 0 : Long.parseLong(v.toString());
+    }
+
+    @Override
+    public BarSearchResultVO searchBars(String keyword, String cursor, Integer pageSize) {
+        if (StrUtil.isBlank(keyword)) {
+            throw new ClientException("贴吧搜索词不能为空");
+        }
+        String normalizedKeyword = keyword.strip();
+        if (normalizedKeyword.length() > 20) {
+            throw new ClientException("贴吧搜索词长度必须在1到20之间");
+        }
+        if (pageSize != null && (pageSize < 1 || pageSize > 10)) {
+            throw new ClientException("pageSize必须在1到10之间");
+        }
+        int size = pageSize == null ? 10 : pageSize;
+        String keywordDigest = DigestUtil.sha256Hex(normalizedKeyword.toLowerCase(Locale.ROOT));
+        BarSearchCursor pageCursor = decodeSearchCursor(cursor, keywordDigest);
+        String escapedKeyword = normalizedKeyword
+                .replace("!", "!!")
+                .replace("%", "!%")
+                .replace("_", "!_");
+        List<BarSearchItemVO> records = barMapper.searchBars(escapedKeyword, pageCursor, size + 1);
+        boolean hasMore = records.size() > size;
+        if (hasMore) {
+            records = new ArrayList<>(records.subList(0, size));
+        }
+
+        String nextCursor = null;
+        if (hasMore) {
+            BarSearchItemVO last = records.get(records.size() - 1);
+            nextCursor = encodeSearchCursor(BarSearchCursor.builder()
+                    .followerCount(last.getFollowerCount())
+                    .postCount(last.getPostCount())
+                    .barId(last.getBarId())
+                    .keywordDigest(keywordDigest)
+                    .build());
+        }
+        return BarSearchResultVO.builder()
+                .records(records)
+                .nextCursor(nextCursor)
+                .hasMore(hasMore)
+                .build();
+    }
+
+    private BarSearchCursor decodeSearchCursor(String cursor, String keywordDigest) {
+        if (StrUtil.isBlank(cursor)) {
+            return null;
+        }
+        try {
+            byte[] json = Base64.getUrlDecoder().decode(cursor);
+            BarSearchCursor pageCursor = objectMapper.readValue(json, BarSearchCursor.class);
+            if (pageCursor.getFollowerCount() == null
+                    || pageCursor.getPostCount() == null
+                    || StrUtil.isBlank(pageCursor.getBarId())
+                    || StrUtil.isBlank(pageCursor.getKeywordDigest())) {
+                throw new ClientException("游标无效");
+            }
+            if (!keywordDigest.equals(pageCursor.getKeywordDigest())) {
+                throw new ClientException("游标与贴吧搜索词不匹配");
+            }
+            return pageCursor;
+        } catch (ClientException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ClientException("游标无效", e);
+        }
+    }
+
+    private String encodeSearchCursor(BarSearchCursor cursor) {
+        try {
+            byte[] json = objectMapper.writeValueAsBytes(cursor);
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(json);
+        } catch (Exception e) {
+            throw new ServiceException("生成贴吧搜索游标失败", e);
+        }
     }
 }
