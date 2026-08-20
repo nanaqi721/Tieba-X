@@ -8,6 +8,19 @@
         <el-breadcrumb-item v-if="route.name === 'postDetail'">帖子详情</el-breadcrumb-item>
       </el-breadcrumb>
 
+      <el-input
+        v-model="searchKeyword"
+        class="search-box"
+        placeholder="搜索帖子或吧"
+        clearable
+        maxlength="20"
+        @keyup.enter="submitSearch"
+      >
+        <template #append>
+          <el-button :icon="Search" aria-label="搜索" @click="submitSearch" />
+        </template>
+      </el-input>
+
       <!-- 登录态：未登录显示登录/注册，已登录显示昵称占位 + 退出 -->
       <div class="user-area">
         <template v-if="auth.isLoggedIn">
@@ -53,12 +66,28 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowDown, House, User } from '@element-plus/icons-vue'
+import { ref, watch } from 'vue'
+import { ArrowDown, House, Search, User } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const searchKeyword = ref('')
+
+watch(
+  () => route.query.keyword,
+  (keyword) => {
+    searchKeyword.value = typeof keyword === 'string' ? keyword : ''
+  },
+  { immediate: true }
+)
+
+function submitSearch() {
+  const keyword = searchKeyword.value.trim()
+  if (!keyword) return
+  router.push({ name: 'search', query: { keyword } })
+}
 
 async function handleUserCommand(command) {
   if (command === 'logout') {
@@ -76,11 +105,19 @@ async function handleUserCommand(command) {
 }
 
 .header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 24px;
   border-bottom: 1px solid #ebeef5;
   background: #fff;
+}
+
+.search-box {
+  position: absolute;
+  left: 50%;
+  width: min(420px, 38vw);
+  transform: translateX(-50%);
 }
 
 .logo {
@@ -149,5 +186,19 @@ async function handleUserCommand(command) {
 
 .nav-item.active {
   color: #409eff;
+}
+
+@media (max-width: 760px) {
+  .breadcrumb {
+    display: none;
+  }
+
+  .search-box {
+    width: min(420px, calc(100% - 180px));
+  }
+
+  .user-area {
+    display: none;
+  }
 }
 </style>

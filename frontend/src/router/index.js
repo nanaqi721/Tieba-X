@@ -20,6 +20,12 @@ const routes = [
         meta: { title: '我的主页', requiresAuth: true },
       },
       {
+        path: 'search',
+        name: 'search',
+        component: () => import('../views/SearchView.vue'),
+        meta: { title: '搜索' },
+      },
+      {
         path: 'bar/create',
         name: 'barCreate',
         component: () => import('../views/BarCreateView.vue'),

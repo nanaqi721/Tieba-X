@@ -18,6 +18,14 @@ export function getFeed(cursor, pageSize) {
 }
 
 /**
+ * 按标题或正文搜索帖子
+ * @returns {Promise<{records: object[], nextCursor: string, hasMore: boolean}>}
+ */
+export function searchPosts(keyword, cursor, pageSize) {
+  return get('/posts/v1/search', { keyword, cursor, pageSize })
+}
+
+/**
  * 吧主页帖子流（游标分页，支持按时间/热度排序）
  * @param {string} barId 吧 id
  * @param {{orderBy?: 'hot'|'createTime', pageSize?: number, cursor?: object|null}} body

@@ -1,4 +1,4 @@
-import { del, post } from './request'
+import { del, get, post } from './request'
 
 /**
  * 吧相关接口
@@ -19,4 +19,12 @@ export function createBar(data) {
 
 export function deleteBar(barId) {
   return del(`/bars/v1/${barId}`)
+}
+
+/**
+ * 按名称搜索吧
+ * @returns {Promise<{records: object[], nextCursor: string, hasMore: boolean}>}
+ */
+export function searchBars(keyword, cursor, pageSize) {
+  return get('/bars/v1/search', { keyword, cursor, pageSize })
 }
