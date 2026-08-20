@@ -1,8 +1,8 @@
 package com.mint.ai.controller;
 
+import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.vo.PostSearchItemVO;
 import com.mint.ai.common.vo.PostSearchResultVO;
-import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.handler.GlobalExceptionHandler;
 import com.mint.ai.service.PostFavoriteService;
 import com.mint.ai.service.PostLikeService;
@@ -90,6 +90,24 @@ class PostSearchControllerTest {
         when(postService.searchPosts(null, null, null)).thenThrow(new ClientException("搜索词不能为空"));
 
         mockMvc.perform(get("/api/posts/v1/search"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("A0001"));
+    }
+
+    @Test
+    void searchPosts_whenPageSizeIsNotANumber_shouldReturnUserError() throws Exception {
+        mockMvc.perform(get("/api/posts/v1/search")
+                        .param("keyword", "Java")
+                        .param("pageSize", "abc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("A0001"));
+    }
+
+    @Test
+    void searchPosts_whenPageSizeOverflowsInteger_shouldReturnUserError() throws Exception {
+        mockMvc.perform(get("/api/posts/v1/search")
+                        .param("keyword", "Java")
+                        .param("pageSize", "9999999999999999999"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("A0001"));
     }

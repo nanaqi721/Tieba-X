@@ -34,6 +34,7 @@ import com.mint.ai.service.PostService;
 import com.mint.ai.user.api.clients.UserClient;
 import com.mint.ai.utils.MyMapUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.core.io.ClassPathResource;
@@ -56,6 +57,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PostServiceImpl implements PostService {
 
     private final ObjectMapper objectMapper;
@@ -477,7 +479,8 @@ public class PostServiceImpl implements PostService {
                 if (Result.SUCCESS_CODE.equals(barResult.getCode()) && barResult.getData() != null) {
                     barMap = barResult.getData();
                 }
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException ex) {
+                log.warn("批量查询贴吧信息失败，使用默认贴吧信息，barIds={}", barIds, ex);
                 barMap = Map.of();
             }
         }

@@ -3,6 +3,7 @@ package com.mint.ai.controller;
 import com.mint.ai.common.Result;
 import com.mint.ai.common.dto.PostFeedInBarRequest;
 import com.mint.ai.common.dto.UpdatePostRequest;
+import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.vo.PostFeedInBarVO;
 import com.mint.ai.common.dto.CreatePostRequest;
 import com.mint.ai.common.vo.*;
@@ -82,8 +83,16 @@ public class PostController {
     public Result<PostSearchResultVO> searchPosts(
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "cursor", required = false) String cursor,
-            @RequestParam(value = "pageSize", required = false) Integer pageSize) {
-        return Results.success(postService.searchPosts(keyword, cursor, pageSize));
+            @RequestParam(value = "pageSize", required = false) String pageSize) {
+        Integer parsedPageSize = null;
+        if (pageSize != null) {
+            try {
+                parsedPageSize = Integer.valueOf(pageSize.trim());
+            } catch (NumberFormatException ex) {
+                throw new ClientException("pageSize格式错误");
+            }
+        }
+        return Results.success(postService.searchPosts(keyword, cursor, parsedPageSize));
     }
 
     /**
