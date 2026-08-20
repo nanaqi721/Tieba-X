@@ -2,6 +2,7 @@ package com.mint.ai.service.serviceImpl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -13,6 +14,7 @@ import com.mint.ai.common.Result;
 import com.mint.ai.common.coontext.UserContext;
 import com.mint.ai.common.cursor.BarPostFeedCursor;
 import com.mint.ai.common.cursor.PostHomeFeedCursor;
+import com.mint.ai.common.cursor.PostSearchCursor;
 import com.mint.ai.common.dto.PostFeedInBarRequest;
 import com.mint.ai.common.enums.BaseEnums;
 import com.mint.ai.common.enums.PostErrorCode;
@@ -41,8 +43,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -430,6 +434,114 @@ public class PostServiceImpl implements PostService {
                 .cursor(c)
                 .data(postFeedInBar)
                 .build();
+    }
+
+    @Override
+    public PostSearchResultVO searchPosts(String keyword, String cursor, Integer pageSize) {
+        if (keyword == null) {
+            throw new ClientException("搜索词不能为空");
+        }
+        String normalizedKeyword = keyword.strip();
+        if (normalizedKeyword.isEmpty()) {
+            throw new ClientException("搜索词不能为空");
+        }
+        if (normalizedKeyword.length() > 20) {
+            throw new ClientException("搜索词长度不能超过20个字符");
+        }
+        if (pageSize != null && (pageSize < 1 || pageSize > 10)) {
+            throw new ClientException("pageSize必须在1到10之间");
+        }
+        int size = pageSize == null ? 10 : pageSize;
+        String keywordDigest = DigestUtil.sha256Hex(normalizedKeyword.toLowerCase(Locale.ROOT));
+        PostSearchCursor pageCursor = decodeSearchCursor(cursor, keywordDigest);
+        String escapedKeyword = normalizedKeyword
+                .replace("!", "!!")
+                .replace("%", "!%")
+                .replace("_", "!_");
+        List<PostSearchItemVO> records = postMapper.searchPosts(escapedKeyword, pageCursor, size + 1);
+
+        boolean hasMore = records.size() > size;
+        if (hasMore) {
+            records = new ArrayList<>(records.subList(0, size));
+        }
+
+        List<String> barIds = records.stream()
+                .map(PostSearchItemVO::getBarId)
+                .filter(StrUtil::isNotBlank)
+                .distinct()
+                .toList();
+        Map<String, BarBaseVO> barMap = Map.of();
+        if (!barIds.isEmpty()) {
+            try {
+                Result<Map<String, BarBaseVO>> barResult = barClient.queryBarList(barIds);
+                if (Result.SUCCESS_CODE.equals(barResult.getCode()) && barResult.getData() != null) {
+                    barMap = barResult.getData();
+                }
+            } catch (RuntimeException ignored) {
+                barMap = Map.of();
+            }
+        }
+        for (PostSearchItemVO record : records) {
+            if (record.getContent() != null && record.getContent().length() > 30) {
+                record.setContent(record.getContent().substring(0, 30) + "...");
+            }
+            BarBaseVO bar = barMap.get(record.getBarId());
+            if (bar == null) {
+                record.setBarName("未知吧");
+                record.setBarAvatarUrl("");
+            } else {
+                record.setBarName(bar.getName());
+                record.setBarAvatarUrl(bar.getAvatarUrl());
+            }
+        }
+
+        String nextCursor = null;
+        if (hasMore) {
+            PostSearchItemVO last = records.get(records.size() - 1);
+            nextCursor = encodeSearchCursor(PostSearchCursor.builder()
+                    .postId(last.getPostId())
+                    .createTime(last.getCreateTime())
+                    .keywordDigest(keywordDigest)
+                    .build());
+        }
+
+        return PostSearchResultVO.builder()
+                .records(records)
+                .nextCursor(nextCursor)
+                .hasMore(hasMore)
+                .build();
+    }
+
+    private PostSearchCursor decodeSearchCursor(String cursor, String keywordDigest) {
+        if (StrUtil.isBlank(cursor)) {
+            return null;
+        }
+        try {
+            byte[] json = Base64.getUrlDecoder().decode(cursor);
+            PostSearchCursor pageCursor = objectMapper.readValue(json, PostSearchCursor.class);
+            if (StrUtil.isBlank(pageCursor.getPostId())
+                    || pageCursor.getCreateTime() == null
+                    || StrUtil.isBlank(pageCursor.getKeywordDigest())) {
+                throw new ClientException("游标无效");
+            }
+            if (!keywordDigest.equals(pageCursor.getKeywordDigest())) {
+                throw new ClientException("游标与搜索词不匹配");
+            }
+            return pageCursor;
+        } catch (ClientException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ClientException("游标无效");
+        }
+    }
+
+    private String encodeSearchCursor(PostSearchCursor cursor) {
+        try {
+            byte[] json = objectMapper.writeValueAsBytes(cursor);
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(json);
+        } catch (Exception e) {
+            throw new ServiceException("生成搜索游标失败", e);
+        }
     }
 
     /**

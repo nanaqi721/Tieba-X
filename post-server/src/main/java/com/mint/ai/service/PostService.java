@@ -25,4 +25,6 @@ public interface PostService {
     PostFeedItemVO homePostsFeed(String cursor, Integer pageSize);
 
     PostFeedInBarVO getPostFeedInBar(PostFeedInBarRequest request);
+
+    PostSearchResultVO searchPosts(String keyword, String cursor, Integer pageSize);
 }

@@ -78,6 +78,14 @@ public class PostController {
         return Results.success(postSummaryVO);
     }
 
+    @GetMapping("/v1/search")
+    public Result<PostSearchResultVO> searchPosts(
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "cursor", required = false) String cursor,
+            @RequestParam(value = "pageSize", required = false) Integer pageSize) {
+        return Results.success(postService.searchPosts(keyword, cursor, pageSize));
+    }
+
     /**
      * 点赞帖子
      * @param postId

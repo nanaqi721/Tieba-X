@@ -79,4 +79,26 @@
         LIMIT #{pageSize}
     </select>
 
+    <select id="searchPosts" resultType="com.mint.ai.common.vo.PostSearchItemVO">
+        SELECT id AS postId,
+               bar_id AS barId,
+               title,
+               content,
+               create_time AS createTime
+        FROM post
+        WHERE deleted = 0
+          AND (
+              title LIKE CONCAT('%', #{keyword}, '%') ESCAPE '!'
+              OR content LIKE CONCAT('%', #{keyword}, '%') ESCAPE '!'
+          )
+        <if test="cursor != null">
+            AND (
+                create_time &lt; #{cursor.createTime}
+                OR (create_time = #{cursor.createTime} AND id &lt; #{cursor.postId})
+            )
+        </if>
+        ORDER BY create_time DESC, id DESC
+        LIMIT #{pageSize}
+    </select>
+
 </mapper>

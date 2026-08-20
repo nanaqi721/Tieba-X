@@ -21,7 +21,7 @@ public class PostMockFactory {
     /** 造一个帖子，返回 postId */
     public String createPost(String title, String content) {
         PostDO post = PostDO.builder()
-                .bar_id("1001").user_id("1001")
+                .barId("1001").userId("1001")
                 .title(title).content(content)
                 .viewCount(0).commentCount(0).favoriteCount(0).likeCount(0)
                 .build();

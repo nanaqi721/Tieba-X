@@ -41,6 +41,7 @@ public class SaTokenConfigure {
             "/api/users/v1/register",
             "/api/posts/v1/home/feed",
             "/api/posts/v1/query",
+            "/api/posts/v1/search",
             "/api/comments/v1/page",
             "/api/comments/v1/replies/page",
     };
