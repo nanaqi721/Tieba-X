@@ -36,13 +36,24 @@
     <el-main class="main">
       <router-view />
     </el-main>
+
+    <nav class="bottom-nav" aria-label="底部导航">
+      <router-link class="nav-item" :class="{ active: route.name === 'home' }" to="/">
+        <el-icon><House /></el-icon>
+        <span>首页</span>
+      </router-link>
+      <router-link class="nav-item" :class="{ active: route.name === 'userHome' }" to="/user">
+        <el-icon><User /></el-icon>
+        <span>我的</span>
+      </router-link>
+    </nav>
   </el-container>
 </template>
 
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowDown, User } from '@element-plus/icons-vue'
+import { ArrowDown, House, User } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
@@ -61,6 +72,7 @@ async function handleUserCommand(command) {
 <style scoped>
 .layout {
   min-height: 100vh;
+  padding-bottom: 72px;
 }
 
 .header {
@@ -103,5 +115,39 @@ async function handleUserCommand(command) {
 
 .user-name {
   font-size: 14px;
+}
+
+.bottom-nav {
+  position: fixed;
+  z-index: 100;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  height: 64px;
+  border-top: 1px solid #ebeef5;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(8px);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #909399;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.nav-item .el-icon {
+  font-size: 22px;
+}
+
+.nav-item.active {
+  color: #409eff;
 }
 </style>

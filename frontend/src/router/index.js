@@ -14,6 +14,12 @@ const routes = [
         meta: { title: '首页' },
       },
       {
+        path: 'user',
+        name: 'userHome',
+        component: () => import('../views/UserHomeView.vue'),
+        meta: { title: '我的主页', requiresAuth: true },
+      },
+      {
         path: 'bar/create',
         name: 'barCreate',
         component: () => import('../views/BarCreateView.vue'),

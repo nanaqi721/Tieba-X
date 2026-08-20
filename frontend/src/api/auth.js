@@ -1,4 +1,4 @@
-import { post } from './request'
+import { get, post } from './request'
 
 /**
  * 认证相关接口
@@ -29,4 +29,12 @@ export function register(data) {
  */
 export function logout() {
   return post('/users/v1/logout')
+}
+
+/**
+ * 查询当前登录用户信息
+ * @returns {Promise<{id: string, username: string, nickname: string, sex: number, avatarUrl: string, postCount: number, commentCount: number, followerCount: number}>}
+ */
+export function getCurrentUser() {
+  return get('/users/v1/me')
 }
