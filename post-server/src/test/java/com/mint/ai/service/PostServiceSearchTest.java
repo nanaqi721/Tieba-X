@@ -7,6 +7,7 @@ import com.mint.ai.common.Result;
 import com.mint.ai.common.exception.ClientException;
 import com.mint.ai.common.vo.PostSearchItemVO;
 import com.mint.ai.common.vo.PostSearchResultVO;
+import com.mint.ai.mapper.AttachmentMapper;
 import com.mint.ai.mapper.PostMapper;
 import com.mint.ai.mq.producer.UserContentChangedProducer;
 import com.mint.ai.service.serviceImpl.PostServiceImpl;
@@ -43,6 +44,9 @@ class PostServiceSearchTest {
     private PostMapper postMapper;
 
     @Mock
+    private AttachmentMapper attachmentMapper;
+
+    @Mock
     private StringRedisTemplate stringRedisTemplate;
 
     @Mock
@@ -64,6 +68,7 @@ class PostServiceSearchTest {
         postService = new PostServiceImpl(
                 new ObjectMapper().findAndRegisterModules(),
                 postMapper,
+                attachmentMapper,
                 stringRedisTemplate,
                 redissonClient,
                 barClient,

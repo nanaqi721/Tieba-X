@@ -100,6 +100,41 @@ public class FileServiceImpl implements FileService {
         if (!ALLOWED_EXT.contains(ext)) {
             throw new ClientException(FileErrorCode.FILE_NOT_ALLOW_TYPE.getMessage(),null,FileErrorCode.FILE_NOT_ALLOW_TYPE);
         }
+        if (!hasValidImageSignature(file, ext)) {
+            throw new ClientException(FileErrorCode.FILE_NOT_ALLOW_TYPE.getMessage(),null,FileErrorCode.FILE_NOT_ALLOW_TYPE);
+        }
+    }
+
+    private boolean hasValidImageSignature(MultipartFile file, String ext) {
+        byte[] header = new byte[12];
+        int length;
+        try (InputStream input = file.getInputStream()) {
+            length = input.read(header);
+        } catch (IOException e) {
+            throw new ServiceException("读取图片失败", e);
+        }
+        return switch (ext) {
+            case "jpg", "jpeg" -> length >= 3
+                    && unsigned(header[0]) == 0xFF
+                    && unsigned(header[1]) == 0xD8
+                    && unsigned(header[2]) == 0xFF;
+            case "png" -> length >= 8
+                    && unsigned(header[0]) == 0x89
+                    && header[1] == 'P' && header[2] == 'N' && header[3] == 'G'
+                    && unsigned(header[4]) == 0x0D && unsigned(header[5]) == 0x0A
+                    && unsigned(header[6]) == 0x1A && unsigned(header[7]) == 0x0A;
+            case "gif" -> length >= 6
+                    && header[0] == 'G' && header[1] == 'I' && header[2] == 'F'
+                    && header[3] == '8' && (header[4] == '7' || header[4] == '9') && header[5] == 'a';
+            case "webp" -> length >= 12
+                    && header[0] == 'R' && header[1] == 'I' && header[2] == 'F' && header[3] == 'F'
+                    && header[8] == 'W' && header[9] == 'E' && header[10] == 'B' && header[11] == 'P';
+            default -> false;
+        };
+    }
+
+    private int unsigned(byte value) {
+        return value & 0xFF;
     }
 
     /**

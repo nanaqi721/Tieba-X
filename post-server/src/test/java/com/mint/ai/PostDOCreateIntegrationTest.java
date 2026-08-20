@@ -48,9 +48,9 @@ class PostDOCreateIntegrationTest {
 
     @Test
     void createPost_whenValid_shouldReturnNewPostIdAndPersist() throws Exception {
-        String body = "{\"title\":\"这是一个合法的帖子标题\",\"content\":\"这是帖子内容\"}";
+        String body = "{\"barId\":\"1001\",\"title\":\"这是一个合法的帖子标题\",\"content\":\"这是帖子内容\"}";
 
-        MvcResult result = mockMvc.perform(post("/api/posts/v1/{barId}/create", BAR_ID)
+        MvcResult result = mockMvc.perform(post("/api/posts/v1/create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -71,9 +71,9 @@ class PostDOCreateIntegrationTest {
 
     @Test
     void createPost_whenTitleBlank_shouldReturnUserError() throws Exception {
-        String body = "{\"title\":\"\",\"content\":\"这是帖子内容\"}";
+        String body = "{\"barId\":\"1001\",\"title\":\"\",\"content\":\"这是帖子内容\"}";
 
-        mockMvc.perform(post("/api/posts/v1/{barId}/create", BAR_ID)
+        mockMvc.perform(post("/api/posts/v1/create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -83,9 +83,9 @@ class PostDOCreateIntegrationTest {
 
     @Test
     void createPost_whenTitleTooShort_shouldReturnUserError() throws Exception {
-        String body = "{\"title\":\"标题\",\"content\":\"这是帖子内容\"}";
+        String body = "{\"barId\":\"1001\",\"title\":\"标题\",\"content\":\"这是帖子内容\"}";
 
-        mockMvc.perform(post("/api/posts/v1/{barId}/create", BAR_ID)
+        mockMvc.perform(post("/api/posts/v1/create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -95,9 +95,9 @@ class PostDOCreateIntegrationTest {
 
     @Test
     void createPost_whenContentBlank_shouldReturnUserError() throws Exception {
-        String body = "{\"title\":\"这是一个合法的帖子标题\",\"content\":\"\"}";
+        String body = "{\"barId\":\"1001\",\"title\":\"这是一个合法的帖子标题\",\"content\":\"\"}";
 
-        mockMvc.perform(post("/api/posts/v1/{barId}/create", BAR_ID)
+        mockMvc.perform(post("/api/posts/v1/create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())

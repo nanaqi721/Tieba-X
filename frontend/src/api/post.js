@@ -38,12 +38,12 @@ export function getBarFeed(barId, body) {
   return post(`/posts/v1/${barId}/home`, body)
 }
 
-export function getPostSummary(barId, postId) {
-  return get(`/posts/v1/${barId}`, { postId })
+export function getPostSummary(postId) {
+  return get('/posts/v1/query', { postId })
 }
 
 export function createPost(barId, data) {
-  return post(`/posts/v1/${barId}/create`, data)
+  return post('/posts/v1/create', { ...data, barId })
 }
 
 export function updatePost(barId, data) {

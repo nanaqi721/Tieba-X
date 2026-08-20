@@ -3,3 +3,4 @@
 export * from './post'
 export * from './auth'
 export * from './bar'
+export * from './file'

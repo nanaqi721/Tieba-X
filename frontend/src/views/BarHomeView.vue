@@ -84,6 +84,19 @@
         <el-form-item label="内容" prop="content">
           <el-input v-model="postForm.content" type="textarea" :rows="8" />
         </el-form-item>
+        <el-form-item label="图片（最多 5 张，单张不超过 5MB）">
+          <el-upload
+            v-model:file-list="imageFiles"
+            list-type="picture-card"
+            accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
+            :auto-upload="false"
+            :limit="5"
+            :on-change="validateImage"
+            :on-exceed="handleImageExceed"
+          >
+            <el-icon><Plus /></el-icon>
+          </el-upload>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="editorVisible = false">取消</el-button>
@@ -97,7 +110,8 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { createPost, deleteBar, getBarFeed, queryBar } from '../api'
+import { Plus } from '@element-plus/icons-vue'
+import { createPost, deleteBar, getBarFeed, queryBar, uploadImages } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { formatTime, formatCount } from '../utils/format'
 
@@ -116,6 +130,7 @@ const editorVisible = ref(false)
 const editorLoading = ref(false)
 const postFormRef = ref()
 const postForm = reactive({ title: '', content: '' })
+const imageFiles = ref([])
 
 const postRules = {
   title: [
@@ -174,16 +189,44 @@ function goPost(post) {
 
 function openCreatePost() {
   Object.assign(postForm, { title: '', content: '' })
+  imageFiles.value = []
   editorVisible.value = true
+}
+
+function validateImage(file, files) {
+  const raw = file.raw
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+  const extension = raw?.name.split('.').pop()?.toLowerCase()
+  if (!raw || (!allowedTypes.includes(raw.type) && !allowedExtensions.includes(extension))) {
+    ElMessage.warning('仅支持 JPG、PNG、GIF、WebP 图片')
+    imageFiles.value = files.filter((item) => item.uid !== file.uid)
+    return
+  }
+  if (raw.size > 5 * 1024 * 1024) {
+    ElMessage.warning('单张图片不能超过 5MB')
+    imageFiles.value = files.filter((item) => item.uid !== file.uid)
+  }
+}
+
+function handleImageExceed() {
+  ElMessage.warning('最多只能上传 5 张图片')
 }
 
 async function submitPost() {
   await postFormRef.value.validate()
   editorLoading.value = true
   try {
-    await createPost(barId, { title: postForm.title, content: postForm.content })
+    const files = imageFiles.value.map((item) => item.raw).filter(Boolean)
+    const uploaded = files.length ? await uploadImages(files) : []
+    await createPost(barId, {
+      title: postForm.title,
+      content: postForm.content,
+      images: uploaded.map((item) => item.url),
+    })
     ElMessage.success('帖子已发布')
     editorVisible.value = false
+    imageFiles.value = []
     posts.value = []
     cursor.value = null
     hasMore.value = true

@@ -7,6 +7,16 @@
       </div>
       <h1>{{ post.title }}</h1>
       <div class="post-content">{{ post.content }}</div>
+      <div v-if="post.images?.length" class="post-images">
+        <el-image
+          v-for="image in post.images"
+          :key="image"
+          :src="image"
+          :preview-src-list="post.images"
+          fit="cover"
+          class="post-image"
+        />
+      </div>
       <div class="post-stats">
         <span>浏览 {{ formatCount(post.viewCount) }}</span>
         <span>点赞 {{ formatCount(post.likeCount) }}</span>
@@ -142,7 +152,7 @@ async function loadPage() {
   loading.value = true
   try {
     const [postData] = await Promise.all([
-      getPostSummary(barId, postId),
+      getPostSummary(postId),
       loadFloors(1),
     ])
     post.value = postData
@@ -296,6 +306,19 @@ async function removeComment(item) {
   line-height: 1.8;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.post-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.post-image {
+  width: 100%;
+  height: 180px;
+  border-radius: 6px;
 }
 
 .post-stats {

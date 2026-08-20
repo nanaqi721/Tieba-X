@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 帖子摘要类
@@ -25,6 +26,8 @@ public class PostSummaryVO {
     private String content;
 
     private String coverImage;
+
+    private List<String> images;
 
     private Integer viewCount;
 

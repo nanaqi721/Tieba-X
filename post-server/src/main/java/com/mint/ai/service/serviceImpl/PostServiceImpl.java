@@ -5,6 +5,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.esotericsoftware.minlog.Log;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +16,7 @@ import com.mint.ai.common.coontext.UserContext;
 import com.mint.ai.common.cursor.BarPostFeedCursor;
 import com.mint.ai.common.cursor.PostHomeFeedCursor;
 import com.mint.ai.common.cursor.PostSearchCursor;
+import com.mint.ai.common.dto.CreatePostRequest;
 import com.mint.ai.common.dto.PostFeedInBarRequest;
 import com.mint.ai.common.enums.BaseEnums;
 import com.mint.ai.common.enums.PostErrorCode;
@@ -25,8 +27,9 @@ import com.mint.ai.common.dto.UpdatePostRequest;
 import com.mint.ai.common.vo.PostFeedInBarVO;
 import com.mint.ai.common.vo.*;
 import com.mint.ai.user.api.vo.UserBaseVO;
+import com.mint.ai.mapper.AttachmentMapper;
 import com.mint.ai.mapper.PostMapper;
-import com.mint.ai.common.dto.CreatePostRequest;
+import com.mint.ai.mapper.entity.AttachmentDO;
 import com.mint.ai.mapper.entity.PostDO;
 import com.mint.ai.mq.enums.UserContentType;
 import com.mint.ai.mq.producer.UserContentChangedProducer;
@@ -64,6 +67,8 @@ public class PostServiceImpl implements PostService {
 
     private final PostMapper postMapper;
 
+    private final AttachmentMapper attachmentMapper;
+
     private final StringRedisTemplate stringRedisTemplate;
 
     private final RedissonClient redissonClient;
@@ -81,6 +86,8 @@ public class PostServiceImpl implements PostService {
 
     // 帖子缓存过期时间
     private static final String POST_CACHE_TTL_SECONDS = "3600";
+
+    private static final int POST_ATTACHMENT_TYPE = 1;
 
     // 自动初始化脚本
     private static final DefaultRedisScript<Long> HSET_WITH_TTL_SCRIPT = new DefaultRedisScript<>();
@@ -100,11 +107,13 @@ public class PostServiceImpl implements PostService {
 
         // 登录已由 LoginInterceptor 兜底，此处直接取用户 id
         String userId = UserContext.getUserId();
+        String coverImage = firstImage(request.getImages());
         PostDO post = PostDO.builder()
                 .barId(request.getBarId())
                 .userId(userId)
                 .title(request.getTitle())
                 .content(request.getContent())
+                .coverImage(coverImage)
                 .viewCount(0)
                 .commentCount(0)
                 .favoriteCount(0)
@@ -112,8 +121,22 @@ public class PostServiceImpl implements PostService {
                 .build();
         postMapper.insert(post);
 
+        if (request.getImages() != null && !request.getImages().isEmpty()) {
+            List<AttachmentDO> attachments = new ArrayList<>(request.getImages().size());
+            for (int index = 0; index < request.getImages().size(); index++) {
+                attachments.add(AttachmentDO.builder()
+                        .id(String.valueOf(IdWorker.getId()))
+                        .bizType(POST_ATTACHMENT_TYPE)
+                        .bizId(post.getId())
+                        .url(request.getImages().get(index))
+                        .sortOrder(index)
+                        .build());
+            }
+            attachmentMapper.batchInsert(attachments);
+        }
+
         // 构建hset帖子缓存数据
-        Map<String, String> cachePost = createCachePost(post.getId(), request,request.getBarId());
+        Map<String, String> cachePost = createCachePost(post.getId(), request, request.getBarId(), coverImage);
         ArrayList<Object> args = new ArrayList<>();
         args.add(POST_CACHE_TTL_SECONDS);
         cachePost.forEach((filed,value) -> {
@@ -206,6 +229,7 @@ public class PostServiceImpl implements PostService {
         Map<Object, Object> postSummary = stringRedisTemplate.opsForHash().entries(String.format(RedisConstantKey.POST_CACHE_SUMMARY,postId));
         if (!postSummary.isEmpty()) {
             PostSummaryVO postSummaryVO = BeanUtil.toBean(MyMapUtils.mapToStingMap(postSummary), PostSummaryVO.class);
+            postSummaryVO.setImages(getPostImages(postId));
             stringRedisTemplate.execute(
                     BAR_POST_COUNT_INCR_SCRIPT,
                     List.of(
@@ -233,6 +257,7 @@ public class PostServiceImpl implements PostService {
                 if(! entries.isEmpty()){
                     Map<String, String> map = MyMapUtils.mapToStingMap(entries);
                     PostSummaryVO summaryVO = BeanUtil.toBean(map, PostSummaryVO.class);
+                    summaryVO.setImages(getPostImages(postId));
                     return summaryVO;
                 }
                 String checkNullCache = stringRedisTemplate.opsForValue().get(String.format(RedisConstantKey.POST_NULL_CACHE_SUMMARY,postId));
@@ -552,12 +577,23 @@ public class PostServiceImpl implements PostService {
      */
     private PostSummaryVO buildSummaryVO(PostDO postDO) {
         PostSummaryVO summaryVO = BeanUtil.toBean(postDO, PostSummaryVO.class);
+        summaryVO.setImages(getPostImages(postDO.getId()));
         // 补上未刷库的点赞/收藏/评论/浏览量增量，保证 缓存/兜底 = DB列 + 缓冲
         summaryVO.setLikeCount(addPendingCount(postDO.getId(), "like_count", summaryVO.getLikeCount()));
         summaryVO.setFavoriteCount(addPendingCount(postDO.getId(), "favorite_count", summaryVO.getFavoriteCount()));
         summaryVO.setCommentCount(addPendingCount(postDO.getId(), "comment_count", summaryVO.getCommentCount()));
         summaryVO.setViewCount(addPendingCount(postDO.getId(), "view_count", summaryVO.getViewCount()));
         return summaryVO;
+    }
+
+    private List<String> getPostImages(String postId) {
+        return attachmentMapper.selectList(Wrappers.<AttachmentDO>lambdaQuery()
+                        .eq(AttachmentDO::getBizType, POST_ATTACHMENT_TYPE)
+                        .eq(AttachmentDO::getBizId, postId)
+                        .orderByAsc(AttachmentDO::getSortOrder))
+                .stream()
+                .map(AttachmentDO::getUrl)
+                .toList();
     }
 
     /**
@@ -569,7 +605,12 @@ public class PostServiceImpl implements PostService {
         return pending == null ? base : base + Integer.parseInt(pending.toString());
     }
 
-    private Map<String,String> createCachePost(String postId, CreatePostRequest request,String barId){
+    private String firstImage(List<String> images) {
+        return images == null || images.isEmpty() ? null : images.get(0);
+    }
+
+    private Map<String,String> createCachePost(String postId, CreatePostRequest request,
+                                               String barId, String coverImage){
         HashMap<String, String> hashMap = new HashMap<>();
         // 构建缓存
         // 现缓存id吧，我也不知道后续有没有用
@@ -583,8 +624,7 @@ public class PostServiceImpl implements PostService {
         hashMap.put("commentCount","0");
         hashMap.put("favoriteCount","0");
         hashMap.put("viewCount", "0");                   // 补上，避免命中时 null
-        hashMap.put("coverImage", "");
-        // todo 缓存封面
+        hashMap.put("coverImage", coverImage == null ? "" : coverImage);
         return hashMap;
     }
 }

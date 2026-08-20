@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 /**
  * 创建帖子请求体
  */
@@ -32,6 +34,9 @@ public class CreatePostRequest {
 
     @NotBlank(message = "吧id不能为空")
     private String barId;
-    // todo:上传图片
-    // list图片地址
+    /**
+     * 已通过文件服务上传的图片 URL，最多 5 张。
+     */
+    @Size(max = 5, message = "帖子图片最多上传5张")
+    private List<@NotBlank(message = "图片地址不能为空") String> images;
 }
