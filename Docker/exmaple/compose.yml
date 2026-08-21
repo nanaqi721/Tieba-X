@@ -1,0 +1,237 @@
+name: teiba-x
+
+x-app-environment: &app-environment
+  SPRING_PROFILES_ACTIVE: prod
+  TZ: Asia/Shanghai
+  MYSQL_URL: jdbc:mysql://mysql:3306/teiba_x?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+  MYSQL_USERNAME: ${MYSQL_USERNAME:?Set MYSQL_USERNAME in .env}
+  MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+  NACOS_SERVER: nacos:8848
+  NACOS_USERNAME: ${NACOS_USERNAME:-nacos}
+  NACOS_PASSWORD: ${NACOS_PASSWORD:-nacos}
+  ROCKETMQ_NAME_SERVER: rocketmq-namesrv:9876
+  XXL_JOB_ACCESS_TOKEN: ${XXL_JOB_ACCESS_TOKEN:?Set XXL_JOB_ACCESS_TOKEN in .env}
+
+x-app-base: &app-base
+  restart: unless-stopped
+  networks:
+    - backend
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_DATABASE: teiba_x
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_USER: ${MYSQL_USERNAME:?Set MYSQL_USERNAME in .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docs/sql_design/teiba-x.sql:/docker-entrypoint-initdb.d/10-teiba-x.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - backend
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    networks:
+      - backend
+
+  nacos:
+    image: nacos/nacos-server:v2.4.3
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "true"
+      NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN:?Set NACOS_AUTH_TOKEN in .env}
+      NACOS_AUTH_IDENTITY_KEY: ${NACOS_AUTH_IDENTITY_KEY:?Set NACOS_AUTH_IDENTITY_KEY in .env}
+      NACOS_AUTH_IDENTITY_VALUE: ${NACOS_AUTH_IDENTITY_VALUE:?Set NACOS_AUTH_IDENTITY_VALUE in .env}
+      JVM_XMS: 256m
+      JVM_XMX: 512m
+      JVM_XMN: 128m
+    volumes:
+      - nacos-data:/home/nacos/data
+      - nacos-logs:/home/nacos/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8848/nacos/v1/console/health/readiness >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks:
+      - backend
+
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.3.1
+    restart: unless-stopped
+    command: sh mqnamesrv
+    environment:
+      JAVA_OPT_EXT: -Xms256m -Xmx256m -Xmn128m
+    volumes:
+      - rocketmq-namesrv-logs:/home/rocketmq/logs
+    networks:
+      - backend
+
+  rocketmq-broker:
+    image: apache/rocketmq:5.3.1
+    restart: unless-stopped
+    depends_on:
+      - rocketmq-namesrv
+    command: sh mqbroker -n rocketmq-namesrv:9876 -c /home/rocketmq/conf/broker.conf
+    environment:
+      JAVA_OPT_EXT: -Xms512m -Xmx512m -Xmn256m
+    volumes:
+      - ./deploy/rocketmq/broker.conf:/home/rocketmq/conf/broker.conf:ro
+      - rocketmq-broker-store:/home/rocketmq/store
+      - rocketmq-broker-logs:/home/rocketmq/logs
+    networks:
+      - backend
+
+  user-server:
+    <<: *app-base
+    build:
+      context: .
+      args:
+        MODULE: user-server
+    environment:
+      <<: *app-environment
+      JAVA_OPTS: -XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8 -Xms256m -Xmx512m
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      rocketmq-namesrv:
+        condition: service_started
+
+  post-server:
+    <<: *app-base
+    build:
+      context: .
+      args:
+        MODULE: post-server
+    environment:
+      <<: *app-environment
+      XXL_EXECUTOR_IP: post-server
+      JAVA_OPTS: -XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8 -Xms256m -Xmx512m
+    volumes:
+      - post-logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      rocketmq-broker:
+        condition: service_started
+
+  bar-server:
+    <<: *app-base
+    build:
+      context: .
+      args:
+        MODULE: bar-server
+    environment:
+      <<: *app-environment
+      XXL_EXECUTOR_IP: bar-server
+      JAVA_OPTS: -XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8 -Xms256m -Xmx512m
+    volumes:
+      - bar-logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+
+  file-server:
+    <<: *app-base
+    build:
+      context: .
+      args:
+        MODULE: file-server
+    environment:
+      <<: *app-environment
+      OSS_ENDPOINT: ${OSS_ENDPOINT:?Set OSS_ENDPOINT in .env}
+      OSS_ACCESSKEY_ID: ${OSS_ACCESSKEY_ID:?Set OSS_ACCESSKEY_ID in .env}
+      OSS_ACCESSKEY_SECRET: ${OSS_ACCESSKEY_SECRET:?Set OSS_ACCESSKEY_SECRET in .env}
+      OSS_BUCKET: ${OSS_BUCKET:?Set OSS_BUCKET in .env}
+      JAVA_OPTS: -XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8 -Xms128m -Xmx384m
+    depends_on:
+      nacos:
+        condition: service_healthy
+
+  gateway:
+    <<: *app-base
+    build:
+      context: .
+      args:
+        MODULE: gateway
+    environment:
+      <<: *app-environment
+      JAVA_OPTS: -XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8 -Xms128m -Xmx384m
+    depends_on:
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      user-server:
+        condition: service_started
+      post-server:
+        condition: service_started
+      bar-server:
+        condition: service_started
+      file-server:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - gateway
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+  nacos-data:
+  nacos-logs:
+  rocketmq-namesrv-logs:
+  rocketmq-broker-store:
+  rocketmq-broker-logs:
+  post-logs:
+  bar-logs:

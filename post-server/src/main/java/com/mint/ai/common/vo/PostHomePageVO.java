@@ -18,6 +18,12 @@ public class PostHomePageVO {
 
     private String postId;
 
+    private Integer favoriteCount;
+
+    private Integer commentCount;
+
+    private Integer likeCount;
+
     /**
      * 热度分(like*5 + view*2 + comment*3),由 SQL 计算列带出,用于下一页游标
      */

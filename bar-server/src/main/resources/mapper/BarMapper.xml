@@ -16,4 +16,32 @@
             #{item.id}
         </foreach>
     </update>
+
+    <select id="searchBars" resultType="com.mint.ai.common.vo.BarSearchItemVO">
+        SELECT id AS barId,
+               name,
+               avatar_url AS avatarUrl,
+               follower_count AS followerCount,
+               post_count AS postCount
+        FROM bar
+        WHERE status = 0
+          AND deleted = 0
+          AND name LIKE CONCAT('%', #{keyword}, '%') ESCAPE '!'
+        <if test="cursor != null">
+            AND (
+                follower_count &lt; #{cursor.followerCount}
+                OR (
+                    follower_count = #{cursor.followerCount}
+                    AND post_count &lt; #{cursor.postCount}
+                )
+                OR (
+                    follower_count = #{cursor.followerCount}
+                    AND post_count = #{cursor.postCount}
+                    AND id &lt; #{cursor.barId}
+                )
+            )
+        </if>
+        ORDER BY follower_count DESC, post_count DESC, id DESC
+        LIMIT #{pageSize}
+    </select>
 </mapper>

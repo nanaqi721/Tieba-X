@@ -40,6 +40,8 @@ logs/
 application-local.yml
 application-local.properties
 *.local.properties
+.env
+!Docker/exmaple/.env.example
 
 # ===== 操作系统 =====
 .DS_Store

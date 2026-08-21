@@ -7,7 +7,7 @@ import { del, get, post } from './request'
 /**
  * 吧详情（名称、头像、帖子数、关注数）
  * @param {string} barId
- * @returns {Promise<{name: string, avatarUrl: string, postCount: number, followerCount: number}>}
+ * @returns {Promise<{name: string, avatarUrl: string, postCount: number, followerCount: number, creatorId: string}>}
  */
 export function queryBar(barId) {
   return post(`/bars/v1/${barId}`)

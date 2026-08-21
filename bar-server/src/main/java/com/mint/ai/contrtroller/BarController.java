@@ -29,7 +29,7 @@ public class BarController {
      * 创建吧 返回barId
      */
     @PostMapping("/v1/create")
-    public Result<Long> createBar(@Valid @RequestBody CreateBarRequest request){
+    public Result<String> createBar(@Valid @RequestBody CreateBarRequest request){
         return Results.success(barService.createBar(request));
     }
 

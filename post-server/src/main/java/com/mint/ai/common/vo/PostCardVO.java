@@ -13,6 +13,9 @@ public class PostCardVO {
     private String coverImage;
     private String barId;
     private Integer hotScore;
+    private Integer favoriteCount;
+    private Integer commentCount;
+    private Integer likeCount;
     // 吧详情（bar-server 缺失时兜底）
     private String barName;          // 兜底 "未知吧"
     private String barAvatarUrl;

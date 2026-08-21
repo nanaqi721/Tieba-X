@@ -21,4 +21,6 @@ public class BarBaseVO {
     private Integer postCount;
 
     private Integer followerCount;
+
+    private String creatorId;
 }

@@ -5,33 +5,33 @@
     :body-style="{ padding: '16px' }"
     @click="goDetail"
   >
-    <div class="card-body">
-      <!-- 封面图 -->
-      <el-image
-        v-if="post.coverImage"
-        :src="post.coverImage"
-        fit="cover"
-        class="cover"
-      />
-
-      <div class="info">
-        <h3 class="title">{{ post.title }}</h3>
-        <p class="content">{{ post.content }}</p>
-
-        <!-- 所属吧信息（feed 已聚合返回，后端有兜底值） -->
-        <div class="bar">
-          <el-avatar :src="post.barAvatarUrl" :size="20" />
-          <span class="bar-name" @click.stop="goBar">{{ post.barName || '未知吧' }}</span>
-          <span class="bar-stat">
-            {{ formatCount(post.barPostCount) }} 帖 · {{ formatCount(post.barFollowerCount) }} 关注
-          </span>
-        </div>
-
-        <div class="foot">
-          <span>热度 {{ formatCount(post.hotScore) }}</span>
-          <span class="more">查看详情 ></span>
+    <div class="bar-header" @click.stop="goBar">
+      <el-avatar :src="post.barAvatarUrl" :size="46" />
+      <div class="bar-summary">
+        <div class="bar-name">{{ post.barName || '未知吧' }}</div>
+        <div class="bar-stats">
+          <span>关注 {{ formatCount(post.barFollowerCount) }}</span>
+          <span>帖子 {{ formatCount(post.barPostCount) }}</span>
         </div>
       </div>
+    </div>
+
+    <h3 class="title">{{ post.title }}</h3>
+    <p class="content">{{ post.content }}</p>
+
+    <el-image
+      v-if="post.coverImage"
+      :src="post.coverImage"
+      :preview-src-list="[post.coverImage]"
+      fit="cover"
+      class="cover"
+      @click.stop
+    />
+
+    <div class="metrics">
+      <span>收藏 {{ formatCount(post.favoriteCount) }}</span>
+      <span>评论 {{ formatCount(post.commentCount) }}</span>
+      <span>点赞 {{ formatCount(post.likeCount) }}</span>
     </div>
   </el-card>
 </template>
@@ -66,71 +66,78 @@ function goBar() {
 <style scoped>
 .feed-card {
   cursor: pointer;
+  background: #f8f9fb;
 }
 
-.card-body {
+.bar-header {
   display: flex;
-  gap: 16px;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
 }
 
-.cover {
-  width: 120px;
-  height: 90px;
-  border-radius: 4px;
-  flex-shrink: 0;
-}
-
-.info {
-  flex: 1;
+.bar-summary {
   min-width: 0;
 }
 
+.bar-name {
+  color: #303133;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.bar-header:hover .bar-name {
+  color: #409eff;
+}
+
+.bar-stats {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  color: #909399;
+  font-size: 12px;
+}
+
 .title {
-  margin: 0 0 8px;
-  font-size: 17px;
+  margin: 16px 0 8px;
+  color: #1f2329;
+  font-size: 18px;
 }
 
 .content {
-  margin: 0 0 8px;
-  color: #606266;
-  font-size: 14px;
-  /* 最多两行，超出省略 */
+  margin: 0 0 12px;
+  color: #303133;
+  font-size: 15px;
+  line-height: 1.7;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.bar {
+.cover {
+  display: block;
+  width: min(100%, 520px);
+  height: 300px;
+  border-radius: 10px;
+}
+
+.metrics {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
+  justify-content: space-around;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #ebeef5;
+  color: #606266;
+  font-size: 14px;
 }
 
-.bar-name {
-  color: #409eff;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.bar-name:hover {
-  text-decoration: underline;
-}
-
-.bar-stat {
-  color: #909399;
-  font-size: 12px;
-}
-
-.foot {
-  display: flex;
-  justify-content: space-between;
-  color: #909399;
-  font-size: 12px;
-}
-
-.more {
-  color: #409eff;
+@media (max-width: 640px) {
+  .cover {
+    height: 220px;
+  }
 }
 </style>

@@ -19,6 +19,9 @@
 
     <select id="postHomePage" resultType="com.mint.ai.common.vo.PostHomePageVO">
         SELECT title, content, cover_image, bar_id, id AS postId,
+               favorite_count AS favoriteCount,
+               comment_count AS commentCount,
+               like_count AS likeCount,
                (like_count * 5 + view_count * 2 + comment_count * 3) AS hotScore
         FROM post
         <where>

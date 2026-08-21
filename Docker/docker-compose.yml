@@ -1,0 +1,511 @@
+# docker-compose的语法版本
+version: '3.8'
+
+# 要依赖的镜像
+services:
+  mysql:   # 服务名称
+    image: mysql:8.4
+    container_name: x-mysql #镜像名称
+    restart: unless-stopped # 容器异常退出或服务器重启后自动启动，手动停止不会自动启动
+    environment:
+      TZ: Asia/Shanghai # 设置时区
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD} # root用户密码
+      MYSQL_DATABASE: x_bar # 第一次初始化默认创建bar名
+      MYSQL_USER: snow # first create user
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD} # first create password
+    ports:
+      # 宿主机端口:容器端口
+      - "127.0.0.1:3306:3306"
+    networks:
+      - backend
+    command: # 设置额外的启动参数
+      - --character-set-server=utf8mb4 # 设置默认字符集
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: x-redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD} # redis密码
+      TZ: Asia/Shanghai
+    command:
+      - redis-server
+      - --appendonly # 开启AOF持久化
+      - "yes" # AOF开关
+      - --requirepass # 要求客户端连接时必须提供密码
+      - ${REDIS_PASSWORD}
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      - backend
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli -a "$$REDIS_PASSWORD" ping | grep PONG
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  xxl-job-admin:
+    image: xuxueli/xxl-job-admin:2.4.0
+    container_name: x-xxl-job-admin
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9001:8080" # 8080端口可能被使用，所有开辟新的端口访问，容器内部是没有冲突的
+    networks:
+      - backend
+    environment:
+      TZ: Asia/Shanghai
+      PARAMS: >- # 作为 Spring Boot 启动参数
+        --spring.datasource.url=jdbc:mysql://mysql:3306/xxl_job?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+        --spring.datasource.username=${XXL_JOB_DB_USERNAME}
+        --spring.datasource.password=${XXL_JOB_DB_PASSWORD}
+        --xxl.job.accessToken=${XXL_JOB_ACCESS_TOKEN}
+    depends_on: # 等待哪些容器启动完成
+      mysql:
+        condition: service_healthy
+
+  # RocketMQ NameServer
+  rocketmq-namesrv:
+
+    # 使用官方 RocketMQ 5.3.1 镜像
+    image: apache/rocketmq:5.3.1
+
+    # 固定容器名称
+    container_name: teiba-x-rocketmq-namesrv
+
+    # 容器异常退出或服务器重启后自动启动
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+    # 启动 RocketMQ NameServer
+    command: sh mqnamesrv
+
+    # NameServer 的 JVM 参数
+    environment:
+
+      # 限制 NameServer 的 Java 内存
+      JAVA_OPT_EXT: >-
+        -Xms256m
+        -Xmx256m
+        -Xmn128m
+
+      # 设置容器时区
+      TZ: Asia/Shanghai
+
+    # NameServer 日志持久化
+    volumes:
+
+      # 保存 NameServer 日志
+      - rocketmq-namesrv-logs:/home/rocketmq/logs
+
+
+  # RocketMQ Broker
+  rocketmq-broker:
+    # 使用与 NameServer 相同版本的官方镜像
+    image: apache/rocketmq:5.3.1
+    # 固定容器名称
+    container_name: teiba-x-rocketmq-broker
+    # 容器异常退出或服务器重启后自动启动
+    restart: unless-stopped
+    networks:
+      - backend
+    # 启动 Broker
+    # -n 指定 NameServer 地址
+    # -c 指定 Broker 配置文件
+    command: >-
+      sh mqbroker
+      -n rocketmq-namesrv:9876
+      -c /home/rocketmq/conf/broker.conf
+    # Broker 的 JVM 参数
+    environment:
+      # Broker 需要的内存通常比 NameServer 多
+      JAVA_OPT_EXT: >-
+        -Xms512m
+        -Xmx512m
+        -Xmn256m
+      # 设置容器时区
+      TZ: Asia/Shanghai
+    # Broker 在 NameServer 之后启动
+    depends_on:
+      # 这里使用 Compose 服务名
+      - rocketmq-namesrv
+    # Broker 配置和数据持久化
+    volumes:
+      # 把宿主机的 broker.conf 挂载到容器中
+      # ro 表示容器只能读取，不能修改
+      - ./rocketmq/broker.conf:/home/rocketmq/conf/broker.conf:ro
+
+      # 持久化 RocketMQ 消息数据
+      - rocketmq-broker-store:/home/rocketmq/store
+
+      # 持久化 Broker 日志
+      - rocketmq-broker-logs:/home/rocketmq/logs
+
+
+  # Teiba-X API 网关
+  gateway:
+
+    # 使用项目源码构建 Gateway 镜像
+    build:
+
+      # 构建上下文是项目根目录
+      # docker-compose.yml 在 docker/ 中，所以使用 ..
+      context: .. # dockerfile构建时的上下文
+
+      # Dockerfile 相对于构建上下文的位置
+      dockerfile: exmaple/gateway/Dockerfile
+
+    # 固定容器名称
+    container_name: x-gateway
+
+    # 容器异常退出或服务器重启后自动启动
+    restart: unless-stopped
+
+    # 向 Gateway 容器传入生产环境配置
+    environment:
+
+      # 启用 Spring Boot 的 prod Profile
+      SPRING_PROFILES_ACTIVE: prod
+
+      # 设置容器时区
+      TZ: Asia/Shanghai
+
+      # Nacos 服务地址
+      # nacos 是 Compose 中的服务名
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+
+      # Nacos 登录用户名
+      SPRING_CLOUD_NACOS_DISCOVERY_USERNAME: ${NACOS_USERNAME}
+
+      # Nacos 登录密码
+      SPRING_CLOUD_NACOS_DISCOVERY_PASSWORD: ${NACOS_PASSWORD}
+
+      # Redis 服务地址
+      # redis 是 Compose 中的服务名
+      SPRING_DATA_REDIS_HOST: redis
+
+      # Redis 容器内部端口
+      SPRING_DATA_REDIS_PORT: 6379
+
+      # Redis 密码，从 docker/.env 读取
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      # Sa-Token 使用 Redis 2 号数据库
+      SPRING_DATA_REDIS_DATABASE: 2
+
+      # Redis 连接超时时间
+      SPRING_DATA_REDIS_CONNECT_TIMEOUT: 5s
+
+      # Gateway 的 JVM 参数
+      JAVA_OPTS: >-
+        -Xms128m
+        -Xmx384m
+        -Dfile.encoding=UTF-8
+
+    # 宿主机端口:容器端口
+    ports:
+
+      # 通过服务器的 8080 访问 Gateway
+      - "8080:8080"
+    networks:
+      - backend
+
+    # 控制 Gateway 的启动顺序
+    depends_on:
+
+      # Redis 容器先启动
+      redis:
+        condition: service_healthy
+
+      # Nacos 容器先启动
+      nacos:
+        condition: service_healthy
+
+
+  # 用户与认证服务
+  user-server:
+    build:
+      context: ..
+      dockerfile: Docker/services/Dockerfile
+      args:
+        MODULE: user-server
+    container_name: x-user-server
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      TZ: Asia/Shanghai
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/x_bar?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: snow
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SPRING_DATA_REDIS_DATABASE: 2
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_DISCOVERY_USERNAME: ${NACOS_USERNAME}
+      SPRING_CLOUD_NACOS_DISCOVERY_PASSWORD: ${NACOS_PASSWORD}
+      ROCKETMQ_NAME_SERVER: rocketmq-namesrv:9876
+      JAVA_OPTS: -Xms256m -Xmx512m -Dfile.encoding=UTF-8
+    expose:
+      - "8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      rocketmq-broker:
+        condition: service_started
+
+
+  # 帖子与评论服务
+  post-server:
+    build:
+      context: ..
+      dockerfile: Docker/services/Dockerfile
+      args:
+        MODULE: post-server
+    container_name: x-post-server
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      TZ: Asia/Shanghai
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/x_bar?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: snow
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SPRING_DATA_REDIS_DATABASE: 2
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_DISCOVERY_USERNAME: ${NACOS_USERNAME}
+      SPRING_CLOUD_NACOS_DISCOVERY_PASSWORD: ${NACOS_PASSWORD}
+      ROCKETMQ_NAME_SERVER: rocketmq-namesrv:9876
+      XXL_JOB_ADMIN_ADDRESSES: http://xxl-job-admin:8080/xxl-job-admin
+      XXL_JOB_ACCESS_TOKEN: ${XXL_JOB_ACCESS_TOKEN}
+      XXL_JOB_EXECUTOR_APPNAME: post-server-executor
+      XXL_JOB_EXECUTOR_IP: post-server
+      XXL_JOB_EXECUTOR_PORT: 9999
+      XXL_JOB_EXECUTOR_LOGPATH: /app/logs/xxl-job/jobhandler
+      XXL_JOB_EXECUTOR_LOGRETENTIONDAYS: 30
+      JAVA_OPTS: -Xms256m -Xmx512m -Dfile.encoding=UTF-8
+    expose:
+      - "8081"
+      - "9999"
+    volumes:
+      - post-job-logs:/app/logs/xxl-job
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      rocketmq-broker:
+        condition: service_started
+      xxl-job-admin:
+        condition: service_started
+
+
+  # 贴吧服务
+  bar-server:
+    build:
+      context: ..
+      dockerfile: Docker/services/Dockerfile
+      args:
+        MODULE: bar-server
+    container_name: x-bar-server
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      TZ: Asia/Shanghai
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/x_bar?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: snow
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SPRING_DATA_REDIS_DATABASE: 2
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_DISCOVERY_USERNAME: ${NACOS_USERNAME}
+      SPRING_CLOUD_NACOS_DISCOVERY_PASSWORD: ${NACOS_PASSWORD}
+      XXL_JOB_ADMIN_ADDRESSES: http://xxl-job-admin:8080/xxl-job-admin
+      XXL_JOB_ACCESS_TOKEN: ${XXL_JOB_ACCESS_TOKEN}
+      XXL_JOB_EXECUTOR_APPNAME: bar-server-executor
+      XXL_JOB_EXECUTOR_IP: bar-server
+      XXL_JOB_EXECUTOR_PORT: 9998
+      XXL_JOB_EXECUTOR_LOGPATH: /app/logs/xxl-job/jobhandler
+      XXL_JOB_EXECUTOR_LOGRETENTIONDAYS: 30
+      JAVA_OPTS: -Xms256m -Xmx512m -Dfile.encoding=UTF-8
+    expose:
+      - "8084"
+      - "9998"
+    volumes:
+      - bar-job-logs:/app/logs/xxl-job
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      xxl-job-admin:
+        condition: service_started
+
+
+  # 文件上传服务
+  file-server:
+    build:
+      context: ..
+      dockerfile: Docker/services/Dockerfile
+      args:
+        MODULE: file-server
+    container_name: x-file-server
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      TZ: Asia/Shanghai
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_DISCOVERY_USERNAME: ${NACOS_USERNAME}
+      SPRING_CLOUD_NACOS_DISCOVERY_PASSWORD: ${NACOS_PASSWORD}
+      ALIYUN_OSS_ENDPOINT: ${OSS_ENDPOINT}
+      ALIYUN_OSS_ACCESS_KEY_ID: ${OSS_ACCESSKEY_ID}
+      ALIYUN_OSS_ACCESS_KEY_SECRET: ${OSS_ACCESSKEY_SECRET}
+      ALIYUN_OSS_BUCKET: ${OSS_BUCKET}
+      JAVA_OPTS: -Xms128m -Xmx384m -Dfile.encoding=UTF-8
+    expose:
+      - "8083"
+    depends_on:
+      nacos:
+        condition: service_healthy
+
+
+  nacos:
+
+    # 使用 Nacos 官方 2.4.3 镜像
+    image: nacos/nacos-server:v2.4.3
+
+    # 固定容器名称，方便执行日志和调试命令
+    container_name: teiba-x-nacos
+
+    # 容器异常退出或服务器重启后自动启动
+    restart: unless-stopped
+
+    # 传给 Nacos 容器的环境变量
+    environment:
+
+      # 使用单机模式
+      # 单台服务器部署时使用 standalone
+      MODE: standalone
+
+      # 开启 Nacos 身份认证
+      NACOS_AUTH_ENABLE: "true"
+
+      # Nacos Token 签名密钥，从 .env 中读取
+      # 必须是足够长的 Base64 字符串
+      NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN}
+
+      # Nacos 服务端身份标识名称
+      NACOS_AUTH_IDENTITY_KEY: ${NACOS_AUTH_IDENTITY_KEY}
+
+      # Nacos 服务端身份标识内容
+      NACOS_AUTH_IDENTITY_VALUE: ${NACOS_AUTH_IDENTITY_VALUE}
+
+      # Nacos JVM 初始堆内存
+      JVM_XMS: 256m
+
+      # Nacos JVM 最大堆内存
+      JVM_XMX: 512m
+
+      # Nacos JVM 新生代内存
+      JVM_XMN: 128m
+
+      # 设置容器时区
+      TZ: Asia/Shanghai
+
+    # 将宿主机端口映射到 Nacos 容器
+    ports:
+
+      # Nacos HTTP、OpenAPI 和控制台端口
+      # 只允许服务器本机访问，避免直接暴露到公网
+      - "127.0.0.1:8848:8848"
+    networks:
+      - backend
+
+    # 保存 Nacos 数据和日志
+    volumes:
+
+      # 保存 Nacos 内置数据库数据
+      - nacos-data:/home/nacos/data
+
+      # 保存 Nacos 日志
+      - nacos-logs:/home/nacos/logs
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS http://localhost:8848/nacos/v1/console/health/readiness || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+
+
+
+
+volumes:
+  # 保存 MySQL 数据
+  mysql-data:
+  # 保存 Redis 的 AOF 和其他持久化数据
+  redis-data:
+
+  # NameServer 日志
+  rocketmq-namesrv-logs:
+
+  # Broker 消息文件
+  rocketmq-broker-store:
+
+  # Broker 日志
+  rocketmq-broker-logs:
+
+  # 保存 Nacos 内置数据库数据
+  nacos-data:
+
+  # 保存 Nacos 日志
+  nacos-logs:
+
+  # post-server 的 XXL-Job 执行日志
+  post-job-logs:
+
+  # bar-server 的 XXL-Job 执行日志
+  bar-job-logs:
+
+networks: # 用来进行网络隔离的,是容器和容器之间通信的通道
+  backend:
+    driver: bridge

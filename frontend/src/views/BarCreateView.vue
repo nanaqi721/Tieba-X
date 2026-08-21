@@ -18,8 +18,19 @@
             show-word-limit
           />
         </el-form-item>
-        <el-form-item label="头像 URL" prop="avatarUrl">
-          <el-input v-model="form.avatarUrl" placeholder="可选，例如 https://..." clearable />
+        <el-form-item label="贴吧头像">
+          <el-upload
+            v-model:file-list="avatarFiles"
+            list-type="picture-card"
+            accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
+            :auto-upload="false"
+            :limit="1"
+            :on-change="validateAvatar"
+            :on-exceed="handleAvatarExceed"
+          >
+            <el-icon><Plus /></el-icon>
+          </el-upload>
+          <div class="upload-tip">支持 JPG、PNG、GIF、WebP，图片大小不超过 5MB</div>
         </el-form-item>
 
         <div class="actions">
@@ -35,12 +46,14 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { createBar } from '../api'
+import { Plus } from '@element-plus/icons-vue'
+import { createBar, uploadImages } from '../api'
 
 const router = useRouter()
 const formRef = ref()
 const loading = ref(false)
 const form = reactive({ name: '', description: '', avatarUrl: '' })
+const avatarFiles = ref([])
 
 const rules = {
   name: [
@@ -49,11 +62,36 @@ const rules = {
   ],
 }
 
+function validateAvatar(file, files) {
+  const raw = file.raw
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+  const extension = raw?.name.split('.').pop()?.toLowerCase()
+  if (!raw || (!allowedTypes.includes(raw.type) && !allowedExtensions.includes(extension))) {
+    ElMessage.warning('仅支持 JPG、PNG、GIF、WebP 图片')
+    avatarFiles.value = files.filter((item) => item.uid !== file.uid)
+    return
+  }
+  if (raw.size > 5 * 1024 * 1024) {
+    ElMessage.warning('头像图片不能超过 5MB')
+    avatarFiles.value = files.filter((item) => item.uid !== file.uid)
+  }
+}
+
+function handleAvatarExceed() {
+  ElMessage.warning('只能上传一张贴吧头像')
+}
+
 async function submit() {
   await formRef.value.validate()
   loading.value = true
   try {
-    const barId = await createBar(form)
+    const avatar = avatarFiles.value[0]?.raw
+    const uploaded = avatar ? await uploadImages([avatar]) : []
+    const barId = await createBar({
+      ...form,
+      avatarUrl: uploaded[0]?.url || '',
+    })
     ElMessage.success('创建成功')
     router.push(`/bar/${barId}`)
   } finally {
@@ -75,6 +113,12 @@ async function submit() {
 
 .card-title {
   font-weight: 700;
+}
+
+.upload-tip {
+  margin-top: 8px;
+  color: #909399;
+  font-size: 12px;
 }
 
 .actions {

@@ -134,16 +134,16 @@ public class UserServiceImpl implements UserService {
             return BeanUtil.mapToBean(newUserCache,UserVO.class,true);
         }
 
-        String userNullCache = stringRedisTemplate.opsForValue().get(String.format(String.format(RedisConstantKey.USER_NULL_CACHE)));
+        String userNullCache = stringRedisTemplate.opsForValue().get(String.format(String.format(RedisConstantKey.USER_NULL_CACHE,userId)));
         if(StrUtil.isNotEmpty(userNullCache)){
             throw new ClientException("用户不存在请查询有效用户");
         }
         // 尝试获取分布式锁
-        RLock lock = redissonClient.getLock(String.format(RedisConstantKey.USER_CACHE_LOCK));
+        RLock lock = redissonClient.getLock(String.format(RedisConstantKey.USER_CACHE_LOCK,userId));
         try {
             if(lock.tryLock(2, TimeUnit.MINUTES)){
                 // 检查是否有空缓存构建了
-                userNullCache = stringRedisTemplate.opsForValue().get(String.format(String.format(RedisConstantKey.USER_NULL_CACHE)));
+                userNullCache = stringRedisTemplate.opsForValue().get(String.format(String.format(RedisConstantKey.USER_NULL_CACHE,userId)));
                 if(StrUtil.isNotEmpty(userNullCache)){
                     throw new ClientException("用户不存在请查询有效用户");
                 }
@@ -159,7 +159,7 @@ public class UserServiceImpl implements UserService {
 
                 UserDO userDO = userMapper.selectById(userId);
                 if(userDO == null){
-                    stringRedisTemplate.opsForValue().set(String.format(String.format(RedisConstantKey.USER_NULL_CACHE))," ");
+                    stringRedisTemplate.opsForValue().set(String.format(String.format(RedisConstantKey.USER_NULL_CACHE,userId))," ");
                     throw new ClientException("用户不存在");
                 }
 
@@ -170,6 +170,7 @@ public class UserServiceImpl implements UserService {
                     userCacheMap.put(key,String.valueOf(stringObjectMap.get(key)));
                 }
                 stringRedisTemplate.opsForHash().putAll(String.format(RedisConstantKey.USER_CACHE,userId),userCacheMap);
+                stringRedisTemplate.expire(String.format(RedisConstantKey.USER_CACHE,userId),10,TimeUnit.MINUTES);
                 return userVO;
 
             }

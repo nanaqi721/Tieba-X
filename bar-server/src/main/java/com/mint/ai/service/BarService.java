@@ -11,7 +11,7 @@ import java.util.Map;
  * bar服务层
  */
 public interface BarService {
-    Long createBar(CreateBarRequest request);
+    String createBar(CreateBarRequest request);
 
     void deleteBar(String barId);
 

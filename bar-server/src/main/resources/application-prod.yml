@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://mysql:3306/teiba_x?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${MYSQL_USERNAME:teibax}
+    password: ${MYSQL_PASSWORD}
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:nacos:8848}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE:2}
+
+xxl:
+  job:
+    accessToken: ${XXL_JOB_ACCESS_TOKEN}
+    admin:
+      addresses: ${XXL_JOB_ADMIN_ADDRESSES:}
+    executor:
+      appname: bar-server-executor
+      ip: ${XXL_EXECUTOR_IP:bar-server}
+      port: 9998
+      logpath: /app/logs/xxl-job/jobhandler
+      logretentiondays: 30

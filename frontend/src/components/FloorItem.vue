@@ -5,19 +5,21 @@
       <div class="head-info">
         <div class="nickname">
           <span>{{ item.nickname || '未知用户' }}</span>
-          <template v-if="item.replyToNickname">
-            <span class="reply-word">回复</span>
-            <span>{{ item.replyToNickname }}</span>
-          </template>
         </div>
         <div class="floor-tag">
           <span>{{ floorLabel }}</span>
           <span>{{ formatTime(item.createTime) }}</span>
         </div>
       </div>
+      <el-button class="reply-action" text size="small" @click.stop="emit('reply', item)">回复</el-button>
     </div>
 
-    <div class="floor-content">{{ item.content }}</div>
+    <div class="floor-content">
+      <template v-if="item.replyToNickname">
+        <span class="reply-target">@{{ item.replyToNickname }}</span>
+      </template>
+      {{ item.content }}
+    </div>
 
     <div v-if="item.images && item.images.length > 0" class="comment-images">
       <el-image
@@ -32,16 +34,7 @@
 
     <div class="floor-foot">
       <span class="like-count">赞 {{ formatCount(item.likeCount) }}</span>
-      <el-button text size="small" @click.stop="emit('reply', item)">回复</el-button>
       <el-button text size="small" @click.stop="emit('like', item)">点赞</el-button>
-      <el-button
-        v-if="showViewReplies && item.floor > 0 && Number(item.replyCount || 0) >= 3"
-        text
-        size="small"
-        @click.stop="emit('view-replies', item)"
-      >
-        共 {{ item.replyCount }} 条回复，点击查看
-      </el-button>
       <el-button
         v-if="auth.isLoggedIn"
         text
@@ -65,6 +58,16 @@
         />
       </div>
     </div>
+
+    <el-button
+      v-if="showViewReplies && item.floor > 0 && Number(item.replyCount || 0) >= 3"
+      class="more-replies"
+      text
+      size="small"
+      @click.stop="emit('view-replies', item)"
+    >
+      展开 {{ item.replyCount }} 条回复
+    </el-button>
   </div>
 </template>
 
@@ -116,12 +119,6 @@ const floorLabel = computed(() => {
   font-weight: 600;
 }
 
-.reply-word {
-  color: #909399;
-  font-size: 12px;
-  font-weight: 400;
-}
-
 .floor-tag {
   display: flex;
   gap: 10px;
@@ -130,10 +127,20 @@ const floorLabel = computed(() => {
 }
 
 .floor-content {
-  margin: 8px 0;
+  margin: 8px 0 8px 42px;
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.reply-target {
+  margin-right: 6px;
+  color: #315b9d;
+}
+
+.reply-action {
+  margin-left: auto;
+  flex: none;
 }
 
 .floor-foot {
@@ -143,13 +150,14 @@ const floorLabel = computed(() => {
   flex-wrap: wrap;
   color: #909399;
   font-size: 12px;
+  margin-left: 42px;
 }
 
 .comment-images {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin: 8px 0;
+  margin: 8px 0 8px 42px;
 }
 
 .comment-image {
@@ -164,9 +172,12 @@ const floorLabel = computed(() => {
 }
 
 .child {
-  padding: 0 12px;
-  margin-bottom: 6px;
-  background: #f5f7fa;
-  border-radius: 4px;
+  margin-bottom: 2px;
+}
+
+.more-replies {
+  margin: 4px 0 0 42px;
+  color: #315b9d;
+  font-weight: 600;
 }
 </style>

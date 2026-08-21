@@ -11,10 +11,11 @@ import { del, get, post, put } from './request'
  * @param {number} [pageSize] 每页条数
  * @returns {Promise<{records: FeedPostVO[], nextCursor: string, hasMore: boolean}>}
  *   FeedPostVO: { postId, title, content, coverImage, barId, hotScore,
+ *                 favoriteCount, commentCount, likeCount,
  *                 barName, barAvatarUrl, barPostCount, barFollowerCount }
  */
 export function getFeed(cursor, pageSize) {
-  return get('/posts/v1/feed', { cursor, pageSize })
+  return get('/posts/v1/home/feed', { cursor, pageSize })
 }
 
 /**
@@ -35,7 +36,7 @@ export function searchPosts(keyword, cursor, pageSize) {
  *                    lastReplyTime, createTime, hotScore, userId, nickName, avatarUrl }
  */
 export function getBarFeed(barId, body) {
-  return post(`/posts/v1/${barId}/home`, body)
+  return post('/posts/v1/bars/home/posts', { ...body, barId })
 }
 
 export function getPostSummary(postId) {
@@ -64,11 +65,11 @@ export function deletePost(barId, postId) {
  *              createTime, children: FloorVO[] }
  */
 export function getFloors(postId, pageNum, pageSize) {
-  return get('/posts/v1/floors', { postId, pageNum, pageSize })
+  return get('/comments/v1/page', { postId, pageNum, pageSize })
 }
 
 export function getReplies(postId, rootId, pageNum, pageSize) {
-  return get(`/posts/v1/floors/${rootId}/replies`, { postId, pageNum, pageSize })
+  return get('/comments/v1/replies/page', { postId, rootId, pageNum, pageSize })
 }
 
 export function createComment(postId, data) {

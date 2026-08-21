@@ -80,14 +80,14 @@ public class BarServiceImpl implements BarService {
     }
 
     @Override
-    public Long createBar(CreateBarRequest request) {
+    public String createBar(CreateBarRequest request) {
         BarDO bar = BeanUtil.toBean(request, BarDO.class);
         bar.setCreatorId(UserContext.getUserId());
         try {
             barMapper.insert(bar);
             // 创建成功了删除空缓存
             stringRedisTemplate.delete(String.format(BarConstantRedisKey.BAR_DETAIL_NULL_CACHE,bar.getId()));
-            return Long.parseLong(bar.getId());
+            return bar.getId();
         } catch (DuplicateKeyException ex) {
             throw new ClientException(BarErrorCode.BAR_NAME_EXISTS.getMessage(),ex,BarErrorCode.BAR_NAME_EXISTS);
 
@@ -165,6 +165,7 @@ public class BarServiceImpl implements BarService {
                 // 构建缓存 返回值（postCount/followerCount 叠加未刷库增量）
                 BarBaseVO build = BarBaseVO.builder()
                         .name(barDO.getName())
+                        .creatorId(barDO.getCreatorId())
                         .avatarUrl(barDO.getAvatarUrl())
                         .postCount(addPendingCount(barId, "post_count", barDO.getPostCount()))
                         .followerCount(addPendingCount(barId, "follower_count", barDO.getFollowerCount()))

@@ -12,7 +12,7 @@
         </div>
         <div v-if="auth.isLoggedIn" class="bar-actions">
           <el-button type="primary" size="small" @click="openCreatePost">发帖</el-button>
-          <el-button type="danger" plain size="small" @click="removeBar">删除吧</el-button>
+          <el-button v-if="isCreator" type="danger" plain size="small" @click="removeBar">删除吧</el-button>
         </div>
       </div>
     </el-card>
@@ -107,11 +107,11 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { createPost, deleteBar, getBarFeed, queryBar, uploadImages } from '../api'
+import { createPost, deleteBar, getBarFeed, getCurrentUser, queryBar, uploadImages } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { formatTime, formatCount } from '../utils/format'
 
@@ -121,6 +121,15 @@ const auth = useAuthStore()
 const barId = route.params.barId
 
 const bar = ref(null) // 吧信息（名称/头像/帖数/关注数）
+const currentUser = ref(null)
+const isCreator = computed(
+  () =>
+    auth.isLoggedIn &&
+    !!bar.value?.creatorId &&
+    !!currentUser.value?.id &&
+    String(bar.value.creatorId) === String(currentUser.value.id)
+)
+
 const posts = ref([]) // 已加载帖子（滚动追加）
 const orderBy = ref('createTime') // 排序：createTime | hot
 const cursor = ref(null) // 下一页游标，首次 null
@@ -145,6 +154,11 @@ onMounted(() => {
   queryBar(barId)
     .then((data) => (bar.value = data))
     .catch(() => (bar.value = null))
+  if (auth.isLoggedIn) {
+    getCurrentUser()
+      .then((data) => (currentUser.value = data))
+      .catch(() => (currentUser.value = null))
+  }
   fetchFeed()
 })
 
